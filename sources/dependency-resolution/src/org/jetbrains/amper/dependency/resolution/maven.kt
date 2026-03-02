@@ -223,12 +223,13 @@ class MavenDependencyNodeWithContext internal constructor(
         valueProvider = { dependencies ->
             val children = dependencies[0] as List<*>
             val dependencyConstraints = dependencies[1] as List<*>
-            children.map { it as MavenDependencyImpl }.mapNotNull {
+            val parentsClosure = this.withTransitiveParents()
+            children.map { it as MavenDependencyImpl }.mapNotNull { mavenDependency ->
                 context
-                    .getOrCreateNode(it, this)
+                    .getOrCreateNode(mavenDependency, this)
                     // skip children that form cyclic dependencies
                     .let { child ->
-                        child.takeIf { !child.isDescendantOf(child) }
+                        child.takeIf { !child.formsCycle(parentsClosure) }
                             .also { if (it == null) child.context.nodeParents.remove(this) }
                     }
             } + dependencyConstraints.map {
@@ -268,16 +269,36 @@ class MavenDependencyNodeWithContext internal constructor(
             isBom
         ))
 
-    private fun DependencyNode.isDescendantOf(
-        parent: DependencyNode,
+    /**
+     * Check that adding the node is safe, i.e., doesn't lead to a cycle in the dependency graph.
+     *
+     * This method uses the precalculated list of its parents (if it has the only parent) to optimize
+     * performance (avoiding traversing parents' hierarchy for each child).
+     * If it has more than one parent, then the actual parents closure is calculated
+     * (because the node might have been referenced from several places and not all of them are known
+     * at the moment precalculated parents closure is calculated.)
+     */
+    private fun DependencyNode.formsCycle(precalculatedParentsClosure: Set<DependencyNode>): Boolean {
+        return if (this.parents.size == 1) {
+            precalculatedParentsClosure.any { it.key == this.key }
+        } else {
+            this.transitiveParents().any { it.key == this.key }
+        }
+    }
+
+    private fun DependencyNode.withTransitiveParents(): Set<DependencyNode> {
+        return transitiveParents() + this
+    }
+
+    private fun DependencyNode.transitiveParents(
         visited: MutableSet<DependencyNode> = mutableSetOf(),
-    ): Boolean {
-        return (parents - visited)
-            .let {
-                visited.addAll(it)
-                it.any { it.key == parent.key }
-                        || it.any { it.isDescendantOf(parent, visited) }
+    ): Set<DependencyNode> {
+        parents.forEach {
+            if (visited.add(it)) {
+                it.transitiveParents(visited)
             }
+        }
+        return visited
     }
 
     /**
