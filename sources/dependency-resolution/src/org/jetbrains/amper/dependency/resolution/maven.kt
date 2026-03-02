@@ -95,7 +95,6 @@ interface MavenDependencyNode : DependencyNode {
     val overriddenBy: Set<DependencyNode>
 
     override val key: Key<MavenDependency>
-        get() = Key<MavenDependency>("$group:$module")
 
     override val graphEntryName: String
         get() = if (dependency.version == originalVersion) {
@@ -110,6 +109,8 @@ interface MavenDependencyNode : DependencyNode {
 
     fun getParentKmpLibraryCoordinates(): MavenCoordinates?
 }
+
+internal fun MavenDependencyNode.getKey(): Key<MavenDependency> = Key<MavenDependency>("$group:$module")
 
 val MavenDependencyNode.group
     get() = dependency.group
@@ -133,6 +134,9 @@ internal class SerializableMavenDependencyNode internal constructor(
     @Transient
     private val graphContext: DependencyGraphContext = currentGraphContext()
 ) : MavenDependencyNode, SerializableDependencyNodeBase(graphContext) {
+
+    override val key by lazy { getKey() }
+
     override fun getMavenCoordinatesForPublishing(): MavenCoordinates = coordinatesForPublishing ?: getOriginalMavenCoordinates()
     override fun getParentKmpLibraryCoordinates(): MavenCoordinates? = parentKmpLibraryCoordinates
 
@@ -194,6 +198,8 @@ class MavenDependencyNodeWithContext internal constructor(
     override val originalVersion: String? = dependency.version
 
     override val isBom: Boolean = dependency.isBom
+
+    override val key = getKey()
 
     /**
      * This version taken from imported BOM is set to this field by dependency resolution (on the build graph stage)
@@ -364,7 +370,7 @@ interface MavenDependencyConstraintNode : DependencyNode {
 
     val overriddenBy: Set<DependencyNode>
 
-    override val key: Key<*> get() = Key<MavenDependency>("$group:$module") // reusing the same key as MavenDependencyNode
+    override val key: Key<MavenDependency>
 
     override val graphEntryName: String
         get() = if (dependencyConstraint.version == version) {
@@ -373,6 +379,8 @@ interface MavenDependencyConstraintNode : DependencyNode {
             "$group:$module:${version.asString()} -> ${dependencyConstraint.version.asString()}"
         }
 }
+
+internal fun MavenDependencyConstraintNode.getKey(): Key<MavenDependency> = Key<MavenDependency>("$group:$module") // reusing the same key as MavenDependencyNode
 
 @Serializable(with = MavenDependencyConstraintReference.Serializer::class)
 class MavenDependencyConstraintReference(
@@ -404,6 +412,8 @@ internal class SerializableMavenDependencyConstraintNode internal constructor(
 
     override val dependencyConstraint: MavenDependencyConstraint by lazy { dependencyConstraintRef.toNodePlain(graphContext) }
 
+    override val key: Key<MavenDependency> by lazy { getKey() } // reusing the same key as MavenDependencyConstraintNode
+
     override val overriddenBy: Set<DependencyNode> by lazy { overriddenByRefs.map { it.toNodePlain(graphContext) }.toSet() }
 
 }
@@ -424,6 +434,8 @@ internal class MavenDependencyConstraintNodeWithContext internal constructor(
     override val group: String = dependencyConstraint.group
     override val module: String = dependencyConstraint.module
     override val version: Version = dependencyConstraint.version
+
+    override val key: Key<MavenDependency> = getKey() // reusing the same key as MavenDependencyConstraintNode
 
     override var overriddenBy: Set<DependencyNode> = emptySet()
         internal set
