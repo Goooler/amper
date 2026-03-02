@@ -51,8 +51,15 @@ class HighestVersionStrategy : ConflictResolutionStrategy {
             .mapNotNull { it.resolvedVersion() } // An unspecified version doesn't produce conflict on its own
             .distinct()
             .distinctBy { ComparableVersion(it) }
-            .take(2)
-            .count() > 1
+            .let {
+                // We don't need to calculate sequence count,
+                // since we need to know only if there are more than one element in the sequence.
+                // The most effective way of checking that is directly accessing iterator.
+                // The optimization is important because conflict detection is performed for all nodes from the graph
+                // several times during resolution.
+                val iterator = it.iterator()
+                iterator.hasNext() && iterator.next().let { iterator.hasNext() }
+            }
 
     /**
      * Sets [MavenDependency] with the highest version and state to all candidates. Never fails.
