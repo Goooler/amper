@@ -57,7 +57,9 @@ internal suspend fun MavenDependencyImpl.resolvePom(
     text: String, context: Context, level: ResolutionLevel, diagnosticsReporter: DiagnosticReporter,
 ): Project? {
     return try {
-        parsePom(text).resolve(context, level, diagnosticsReporter)
+        computeIfAbsentInResolutionCache(context, "resolvedPomProject") {
+            parsePom(text).resolve(context, level, diagnosticsReporter)
+        }
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {

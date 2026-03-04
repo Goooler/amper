@@ -4,6 +4,7 @@
 package org.jetbrains.amper.frontend.dr.resolver.flow
 
 import io.opentelemetry.api.OpenTelemetry
+import org.jetbrains.amper.dependency.resolution.Cache
 import org.jetbrains.amper.dependency.resolution.CacheEntryKey
 import org.jetbrains.amper.dependency.resolution.Context
 import org.jetbrains.amper.dependency.resolution.FileCacheBuilder
@@ -42,19 +43,21 @@ interface DependenciesFlow<T: DependenciesFlowType> {
         module: AmperModule,
         fileCacheBuilder: FileCacheBuilder.() -> Unit,
         openTelemetry: OpenTelemetry?,
-        incrementalCache: IncrementalCache?
+        incrementalCache: IncrementalCache?,
+        sharedResolutionCache: Cache,
     ): ModuleDependencyNodeWithModuleAndContext
 
     fun directDependenciesGraph(
         modules: List<AmperModule>,
         fileCacheBuilder: FileCacheBuilder.() -> Unit,
         openTelemetry: OpenTelemetry?,
-        incrementalCache: IncrementalCache?
+        incrementalCache: IncrementalCache?,
+        sharedResolutionCache: Cache,
     ): RootDependencyNodeWithContext {
         return openTelemetry.spanBuilder("DR: Resolving direct graph").useWithoutCoroutines {
             val node = RootDependencyNodeWithContext(
                 rootCacheEntryKey = resolutionCacheEntryKey(modules).asRootCacheEntryKey(),
-                children = modules.map { directDependenciesGraph(it, fileCacheBuilder, openTelemetry, incrementalCache) },
+                children = modules.map { directDependenciesGraph(it, fileCacheBuilder, openTelemetry, incrementalCache, sharedResolutionCache) },
                 templateContext = emptyContext(fileCacheBuilder, openTelemetry, incrementalCache)
             )
             node
@@ -140,6 +143,7 @@ abstract class AbstractDependenciesFlow<T: DependenciesFlowType>(
         fileCacheBuilder: FileCacheBuilder.() -> Unit,
         openTelemetry: OpenTelemetry?,
         incrementalCache: IncrementalCache?,
+        sharedResolutionCache: Cache,
     ): Context {
         val repositories = getValidRepositories()
         val context = contextMap.computeIfAbsent(
@@ -150,7 +154,7 @@ abstract class AbstractDependenciesFlow<T: DependenciesFlowType>(
                 repositories.toSet()
             )
         ) { key ->
-            Context {
+            Context(sharedResolutionCache) {
                 this.scope = key.scope
                 this.platforms = key.platforms
                 this.repositories = repositories

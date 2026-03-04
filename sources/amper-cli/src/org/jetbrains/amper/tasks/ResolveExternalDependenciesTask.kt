@@ -27,6 +27,7 @@ import org.jetbrains.amper.frontend.dr.resolver.DirectFragmentDependencyNode
 import org.jetbrains.amper.frontend.dr.resolver.ModuleDependencies
 import org.jetbrains.amper.frontend.dr.resolver.flow.toResolutionPlatform
 import org.jetbrains.amper.frontend.dr.resolver.getExternalDependencies
+import org.jetbrains.amper.frontend.fragmentsTargeting
 import org.jetbrains.amper.frontend.mavenRepositories
 import org.jetbrains.amper.incrementalcache.IncrementalCache
 import org.jetbrains.amper.incrementalcache.ResultWithSerializable
@@ -53,19 +54,18 @@ internal data class ExternalDependenciesResolutionResult(
 /**
  * Enforces resolution contract for compile/runtime dependencies (that they must be resolved together).
  * 
- * Also, hides cache entry key creation details from the caller, requesting [module], [platform] and [isTest] instead.
+ * Also, hides cache entry key creation details from the caller, requesting [moduleDependencies], [platform] and [isTest] instead.
  * 
  * This function should be used only if some task requires an actual graph instead of
  * a plain list of dependencies. It reuses the same cache that [ResolveExternalDependenciesTask],
  * so that in general graph will be deserialized from the cache entry.
  */
 internal suspend fun CliReportingMavenResolver.doResolveExternalDependencies(
-    module: AmperModule,
     platform: Platform,
     isTest: Boolean,
     moduleDependencies: ModuleDependencies,
 ): ExternalDependenciesResolutionResult {
-    val resolveSourceMoniker = "module ${module.userReadableName}"
+    val resolveSourceMoniker = "module ${moduleDependencies.module.userReadableName}"
 
     val allLeafPlatformsGraph = moduleDependencies.allLeafPlatformsGraph(isTest)
     val platformCompileDepsIndex = allLeafPlatformsGraph.children.indexOfFirst {
@@ -93,10 +93,12 @@ class ResolveExternalDependenciesTask(
     private val incrementalCache: IncrementalCache,
     private val platform: Platform,
     private val isTest: Boolean,
-    private val fragments: List<Fragment>,
     private val moduleDependencies: ModuleDependencies,
     override val taskName: TaskName,
 ) : Task {
+
+    // for test code, we resolve dependencies on union of test and prod dependencies
+    private val fragments = module.fragmentsTargeting(platform, includeTestFragments = isTest)
 
     private val mavenResolver by lazy {
         CliReportingMavenResolver(userCacheRoot, incrementalCache)
@@ -181,7 +183,6 @@ class ResolveExternalDependenciesTask(
                     ) {
                         val (compileDependenciesRootNode, runtimeDependenciesRootNode, expirationTime) =
                             mavenResolver.doResolveExternalDependencies(
-                                module = module,
                                 platform = platform,
                                 isTest = isTest,
                                 moduleDependencies = moduleDependencies,

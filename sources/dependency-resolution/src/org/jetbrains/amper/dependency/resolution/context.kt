@@ -38,7 +38,7 @@ import kotlin.io.path.Path
  */
 class Context internal constructor(
     val settings: Settings,
-    val resolutionCache: Cache = Cache(),
+    val resolutionCache: Cache = Cache(), // todo (AB) : Split to globalResolutionCache and former Context-boiund resolutionCache?
     /**
      * Contains a map of all already created [MavenDependencyNode]s by their original maven dependency.
      *
@@ -53,7 +53,8 @@ class Context internal constructor(
     private val constraintsByMavenDependency: MutableMap<MavenDependencyConstraintImpl, MavenDependencyConstraintNodeWithContext> = ConcurrentHashMap(),
 ) {
 
-    constructor(block: SettingsBuilder.() -> Unit = {}) : this(SettingsBuilder(block).settings)
+    constructor(resolutionCache: Cache? = Cache(), block: SettingsBuilder.() -> Unit = {})
+            : this(SettingsBuilder(block).settings, resolutionCache ?: Cache())
 
     val nodeCache: Cache = Cache()
 

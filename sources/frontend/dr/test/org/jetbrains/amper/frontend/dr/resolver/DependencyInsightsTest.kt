@@ -41,7 +41,8 @@ class DependencyInsightsTest : BaseModuleDrTest() {
             "",
         )
 
-        val jvmEmptyModuleGraph = doTest(
+        val jvmEmptyModuleGraph = doTestByFile(
+            testInfo,
             aom,
             resolutionInput = ResolutionInput(
                 DependenciesFlowType.IdeSyncType(aom), ResolutionDepth.GRAPH_FULL,
@@ -49,35 +50,6 @@ class DependencyInsightsTest : BaseModuleDrTest() {
             ),
             module = "jvm-empty",
             filter = ModuleResolutionFilter(scope = ResolutionScope.COMPILE),
-            expected = """
-                Module jvm-empty
-                │ - main
-                │ - scope = COMPILE
-                │ - platforms = [jvm]
-                ╰─── jvm-empty:main:org.jetbrains.kotlin:kotlin-stdlib:${DefaultVersions.kotlin}, implicit
-                     ╰─── org.jetbrains.kotlin:kotlin-stdlib:${DefaultVersions.kotlin}
-                          ╰─── org.jetbrains:annotations:13.0
-                Module jvm-empty
-                │ - test
-                │ - scope = COMPILE
-                │ - platforms = [jvm]
-                ├─── jvm-empty:main:org.jetbrains.kotlin:kotlin-stdlib:${DefaultVersions.kotlin}, implicit
-                │    ╰─── org.jetbrains.kotlin:kotlin-stdlib:${DefaultVersions.kotlin}
-                │         ╰─── org.jetbrains:annotations:13.0
-                ├─── jvm-empty:test:org.jetbrains.kotlin:kotlin-stdlib:${DefaultVersions.kotlin}, implicit
-                │    ╰─── org.jetbrains.kotlin:kotlin-stdlib:${DefaultVersions.kotlin} (*)
-                ╰─── jvm-empty:test:org.jetbrains.kotlin:kotlin-test-junit5:${DefaultVersions.kotlin}, implicit (because the test engine is junit-5)
-                     ╰─── org.jetbrains.kotlin:kotlin-test-junit5:${DefaultVersions.kotlin}
-                          ├─── org.jetbrains.kotlin:kotlin-test:${DefaultVersions.kotlin}
-                          │    ╰─── org.jetbrains.kotlin:kotlin-stdlib:${DefaultVersions.kotlin} (*)
-                          ╰─── org.junit.jupiter:junit-jupiter-api:5.10.1
-                               ├─── org.junit:junit-bom:5.10.1
-                               ├─── org.opentest4j:opentest4j:1.3.0
-                               ├─── org.junit.platform:junit-platform-commons:1.10.1
-                               │    ├─── org.junit:junit-bom:5.10.1
-                               │    ╰─── org.apiguardian:apiguardian-api:1.1.2
-                               ╰─── org.apiguardian:apiguardian-api:1.1.2
-                """.trimIndent()
         )
 
         assertInsightByFile(
@@ -190,7 +162,7 @@ class DependencyInsightsTest : BaseModuleDrTest() {
     /**
      * This test checks that a large number of overridden dependencies don't
      * cause performance degradation.
-     * // todo (AB) : This test is added temporarly and should be removed (it doesn't check anything that other tests checks
+     * // todo (AB) : This test is added temporary and should be removed (it doesn't check anything that other tests checks
      * // todo (AB) : It is added for debug purposes.
      */
     @Test

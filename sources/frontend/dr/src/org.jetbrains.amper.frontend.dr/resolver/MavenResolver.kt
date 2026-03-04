@@ -145,7 +145,6 @@ open class MavenResolver(
                     scope = ResolutionScope.COMPILE,
                     platforms = emptySet(),
                     isTest = isTest,
-                    includeNonExportedNative = false
                 ),
                 resolutionDepth = resolutionDepth,
                 resolutionLevel = ResolutionLevel.NETWORK,

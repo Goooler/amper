@@ -5,6 +5,7 @@
 package org.jetbrains.amper.frontend.dr.resolver.flow
 
 import io.opentelemetry.api.OpenTelemetry
+import org.jetbrains.amper.dependency.resolution.Cache
 import org.jetbrains.amper.dependency.resolution.CacheEntryKey
 import org.jetbrains.amper.dependency.resolution.Context
 import org.jetbrains.amper.dependency.resolution.FileCacheBuilder
@@ -28,7 +29,7 @@ import org.jetbrains.amper.incrementalcache.IncrementalCache
 
 /**
  * Performs the initial resolution of module classpath dependencies.
- * The resulting graph contains a node for every 'compile' module dependency
+ * The resulting graph contains a node for every module dependency matching the resoution scope
  * as well as direct maven dependencies of that module.
  *
  * It doesn't download anything.
@@ -53,14 +54,17 @@ import org.jetbrains.amper.incrementalcache.IncrementalCache
  *   (let's call the resulted set as ModuleFragmentDependencies)
  * - adding all direct dependencies on the other modules fragments (for every fragment from ModuleFragmentDependencies)
  * - adding all direct dependencies on the other modules fragments either marked with the flag 'exported'
- *   or unconditionally for native modules since native module compilation classpath includes all transitive dependencies
+ *   or unconditionally for native modules (since the native module compilation classpath includes all transitive dependencies)
+ *                  and for the runtime resolution scope
  *   (for every fragment from the previous step)
  * - repeating the last step until newly added fragments have exported dependencies
- *   => resulted set is a complete transitive fragment dependencies.
+ *   => resulting set is a complete list of transitive fragment dependencies.
  *
  * 2. Now, walk through the resulting fragment dependencies graph and resolve actual maven dependencies
  * - adding maven dependencies of all fragments from ModuleFragmentDependencies unconditionally
  * - adding maven dependencies marked with the flag 'exported' for all the rest fragments from the graph
+ *   or unconditionally for native modules (since the native module compilation classpath includes all transitive dependencies)
+ *                  and for the runtime resolution scope
  */
 internal class Classpath(
     dependenciesFlowType: DependenciesFlowType.ClassPathType
@@ -71,11 +75,14 @@ internal class Classpath(
         fileCacheBuilder: FileCacheBuilder.() -> Unit,
         openTelemetry: OpenTelemetry?,
         incrementalCache: IncrementalCache?,
+        sharedResolutionCache: Cache,
     ): ModuleDependencyNodeWithModuleAndContext {
         return module.fragmentsModuleDependencies(flowType, fileCacheBuilder = fileCacheBuilder,
-            openTelemetry = openTelemetry, incrementalCache = incrementalCache)
+            openTelemetry = openTelemetry, incrementalCache = incrementalCache,
+            sharedResolutionCache = sharedResolutionCache)
     }
 
+    @Deprecated("To be removed. Used in obsoleteIdeSync only")
     internal fun directDependenciesGraph(
         fragment: Fragment,
         fileCacheBuilder: FileCacheBuilder.() -> Unit,
@@ -83,7 +90,8 @@ internal class Classpath(
         incrementalCache: IncrementalCache?
     ): ModuleDependencyNodeWithModuleAndContext {
         return fragment.module.fragmentsModuleDependencies(flowType, initialFragment = fragment,
-            fileCacheBuilder = fileCacheBuilder, openTelemetry = openTelemetry, incrementalCache = incrementalCache)
+            fileCacheBuilder = fileCacheBuilder, openTelemetry = openTelemetry, incrementalCache = incrementalCache,
+            sharedResolutionCache = Cache())
     }
 
     override fun resolutionCacheEntryKey(modules: List<AmperModule>): CacheEntryKey {
@@ -109,11 +117,14 @@ internal class Classpath(
         fileCacheBuilder: FileCacheBuilder.() -> Unit,
         openTelemetry: OpenTelemetry?,
         incrementalCache: IncrementalCache?,
+        sharedResolutionCache: Cache,
     ): ModuleDependencyNodeWithModuleAndContext {
 
         visitedModules.add(this)
 
-        val moduleContext = resolveModuleContext(flowType.platforms, flowType.scope, flowType.isTest, fileCacheBuilder, openTelemetry, incrementalCache)
+        val moduleContext = resolveModuleContext(flowType.platforms, flowType.scope, flowType.isTest,
+            fileCacheBuilder, openTelemetry, incrementalCache, sharedResolutionCache)
+
         val resolutionPlatforms = moduleContext.settings.platforms
 
         // test fragments couldn't reference test fragments of transitive (non-direct) module dependencies
@@ -134,7 +145,7 @@ internal class Classpath(
 
         val dependencies = fragments
             .sortedForClasspath(platforms)
-            .flatMap { it.toDependencyNode(resolutionPlatforms, directDependencies, moduleContext, visitedModules, flowType, fileCacheBuilder, openTelemetry, incrementalCache) }
+            .flatMap { it.toDependencyNode(resolutionPlatforms, directDependencies, moduleContext, visitedModules, flowType, fileCacheBuilder, openTelemetry, incrementalCache, sharedResolutionCache) }
             .sortedByDescending { (it.notation as? DefaultScopedNotation)?.exported == true }
 
         val node = ModuleDependencyNodeWithModuleAndContext(
@@ -149,24 +160,6 @@ internal class Classpath(
         return node
     }
 
-    private fun AmperModule.getModuleName(
-        addContextInfo: Boolean,
-        flowType: DependenciesFlowType.ClassPathType,
-        resolutionPlatforms: Set<ResolutionPlatform>
-    ): StringBuilder {
-        val moduleName = StringBuilder("Module ${this.userReadableName}")
-        if (addContextInfo) {
-            moduleName.append("\n")
-            moduleName.append(
-                """│ - ${if (flowType.isTest) "test" else "main"}
-                  |│ - scope = ${flowType.scope.name}
-                  |│ - platforms = [${resolutionPlatforms.joinToString { it.toPlatform().pretty }}]
-                  """.trimMargin()
-            )
-        }
-        return moduleName
-    }
-
     private fun Fragment.toDependencyNode(
         platforms: Set<ResolutionPlatform>,
         directDependencies: Boolean,
@@ -176,6 +169,7 @@ internal class Classpath(
         fileCacheBuilder: FileCacheBuilder.() -> Unit,
         openTelemetry: OpenTelemetry?,
         incrementalCache: IncrementalCache?,
+        sharedResolutionCache: Cache,
     ): List<DependencyNodeHolderWithNotationAndContext> {
         val fragmentDependencies = externalDependencies
             .distinct()
@@ -195,7 +189,8 @@ internal class Classpath(
                             if (includeDependency) {
                                 resolvedDependencyModule.fragmentsModuleDependencies(
                                     flowType, directDependencies = false, notation = dependency, visitedModules = visitedModules,
-                                    fileCacheBuilder = fileCacheBuilder, openTelemetry = openTelemetry, incrementalCache = incrementalCache
+                                    fileCacheBuilder = fileCacheBuilder, openTelemetry = openTelemetry, incrementalCache = incrementalCache,
+                                    sharedResolutionCache = sharedResolutionCache
                                 )
                             } else null
                         } else null

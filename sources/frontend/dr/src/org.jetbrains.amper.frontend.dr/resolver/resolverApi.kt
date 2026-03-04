@@ -8,6 +8,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import org.jetbrains.amper.core.AmperUserCacheRoot
+import org.jetbrains.amper.dependency.resolution.Cache
 import org.jetbrains.amper.dependency.resolution.CacheEntryKey
 import org.jetbrains.amper.dependency.resolution.Context
 import org.jetbrains.amper.dependency.resolution.DependencyGraphContext
@@ -84,7 +85,8 @@ interface ModuleDependenciesResolver {
         dependenciesFlowType: DependenciesFlowType.ClassPathType,
         fileCacheBuilder: FileCacheBuilder.() -> Unit,
         openTelemetry: OpenTelemetry?,
-        incrementalCache: IncrementalCache?
+        incrementalCache: IncrementalCache?,
+        sharedResolutionCache: Cache,
     ): ModuleDependencyNodeWithModuleAndContext
 
     @Deprecated("[AMPER-4905] To be removed")

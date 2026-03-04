@@ -9,7 +9,6 @@ import org.jetbrains.amper.frontend.ModuleTasksPart
 import org.jetbrains.amper.frontend.TaskName
 import org.jetbrains.amper.frontend.allSourceFragmentCompileDependencies
 import org.jetbrains.amper.frontend.dr.resolver.ModuleDependencies
-import org.jetbrains.amper.frontend.fragmentsTargeting
 import org.jetbrains.amper.tasks.ProjectTasksBuilder.Companion.getTaskOutputPath
 
 internal enum class CommonTaskType(override val prefix: String) : PlatformTaskType {
@@ -33,14 +32,14 @@ internal enum class CommonFragmentTaskType(override val prefix: String) : Fragme
 }
 
 fun ProjectTasksBuilder.setupCommonTasks() {
-    val moduleDependenciesMap = model.modules.associateWith {
-        ModuleDependencies(it, context.userCacheRoot, context.incrementalCache, GlobalOpenTelemetry.get())
+    val moduleDependenciesMap = with(ModuleDependencies) {
+        model.moduleDependencies(context.userCacheRoot, context.incrementalCache,GlobalOpenTelemetry.get())
+            .associateBy { it.module }
     }
     allModules()
         .alsoPlatforms()
         .alsoTests()
         .withEach {
-            val fragmentsIncludeProduction = module.fragmentsTargeting(platform, includeTestFragments = isTest)
             tasks.registerTask(
                 ResolveExternalDependenciesTask(
                     module = module,
@@ -48,8 +47,6 @@ fun ProjectTasksBuilder.setupCommonTasks() {
                     incrementalCache = context.incrementalCache,
                     platform = platform,
                     isTest = isTest,
-                    // for test code, we resolve dependencies on union of test and prod dependencies
-                    fragments = fragmentsIncludeProduction,
                     moduleDependencies = moduleDependenciesMap[module]!!,
                     taskName = CommonTaskType.Dependencies.getTaskName(module, platform, isTest),
                 )

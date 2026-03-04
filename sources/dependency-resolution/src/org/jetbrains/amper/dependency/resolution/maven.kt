@@ -526,7 +526,8 @@ fun Context.createOrReuseDependency(
 ): MavenDependencyImpl =
     this.resolutionCache.computeIfAbsent(Key<MavenDependencyImpl>(
         "${coordinates.groupId}:${coordinates.artifactId}:${coordinates.version.orUnspecified()}" +
-                "${coordinates.classifier?.let{":$it"} ?: ""}:$isBom"
+                "${coordinates.classifier?.let{":$it"} ?: ""}:$isBom" +
+                "${settings.scope}:${settings.platforms.joinToString { it.pretty }}"
     )) {
         MavenDependencyImpl(this.settings, coordinates, isBom)
     }
@@ -536,7 +537,10 @@ internal fun Context.createOrReuseDependencyConstraint(
     module: String,
     version: Version
 ): MavenDependencyConstraintImpl =
-    this.resolutionCache.computeIfAbsent(Key<MavenDependencyConstraintImpl>("$group:$module:$version")) {
+    this.resolutionCache.computeIfAbsent(Key<MavenDependencyConstraintImpl>(
+        "$group:$module:$version" +
+                "${settings.scope}:${settings.platforms.joinToString { it.pretty }}"
+    )) {
         MavenDependencyConstraintImpl(group, module, version)
     }
 
@@ -1400,7 +1404,9 @@ class MavenDependencyImpl internal constructor(
     ): Module? {
         if (skipIsDownloadedCheck || moduleFile.isDownloadedOrDownload(level, context, diagnosticReporter)) {
             try {
-                return moduleFile.readText().parseMetadata()
+                return computeIfAbsentInResolutionCache(context, "parsedMetadata") {
+                    moduleFile.readText().parseMetadata()
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -1425,6 +1431,27 @@ class MavenDependencyImpl internal constructor(
             )
         }
         return null
+    }
+
+    private  inline fun <reified T: Any> Context.retrieveCachedEntry(key: String): T? = resolutionCache[Key<T>(key)]
+
+    internal suspend inline fun <reified T: Any> MavenDependencyImpl.computeIfAbsentInResolutionCache(
+        context: Context,
+        keyName: String,
+        crossinline block: suspend () -> T?
+    ): T? {
+        val keyScope = "$coordinates:$isBom"
+        val scopedKey = "$keyScope:keyName=$keyName"
+
+        return context.retrieveCachedEntry(scopedKey)
+            ?: run {
+                val mutex = context.resolutionCache.computeIfAbsent(Key<Mutex>(scopedKey)) { Mutex() }
+                mutex.withLock {
+                    context.retrieveCachedEntry(scopedKey)
+                        ?: block()
+                            ?.also { context.resolutionCache[Key<T>(scopedKey)] = it }
+                }
+            }
     }
 
     private suspend fun detectKotlinMetadataLibrary(
@@ -1471,14 +1498,16 @@ class MavenDependencyImpl internal constructor(
         kotlinMetadataVariant: Variant,
         diagnosticsReporter: DiagnosticReporter
     ) {
-        val kmpMetadata = kmpMetadataFile.getPath()?.let {
-            readJarEntry(it, "META-INF/kotlin-project-structure-metadata.json")
-        } ?: run {
-            diagnosticsReporter.addMessage(KotlinProjectStructureMetadataMissing.asMessage(kmpMetadataFile.fileName))
-            return
-        }
-
-        val kotlinProjectStructureMetadata = kmpMetadata.parseKmpLibraryMetadata()
+        val kotlinProjectStructureMetadata: KotlinProjectStructureMetadata =
+            computeIfAbsentInResolutionCache(context, "kotlinProjectStructureMetadata") {
+                val kmpMetadata = kmpMetadataFile.getPath()?.let {
+                    readJarEntry(it, "META-INF/kotlin-project-structure-metadata.json")
+                }
+                kmpMetadata?.parseKmpLibraryMetadata()
+            } ?: run {
+                diagnosticsReporter.addMessage(KotlinProjectStructureMetadataMissing.asMessage(kmpMetadataFile.fileName))
+                return
+            }
 
         val resolvedVariants = context.settings.platforms.associateWith {
             resolveVariants(moduleMetadata, context.settings, it).withoutDocumentationAndMetadata
@@ -1667,15 +1696,20 @@ class MavenDependencyImpl internal constructor(
             }
         val kmpLibraryWithSourceSet = context.debugSpanBuilder("resolveKmpLibraryWithSourceSet")
             .use {
-                resolveKmpLibraryWithSourceSet(
-                    sourceSetName,
-                    kmpMetadataFile,
+                kmpMetadataFile.dependency.computeIfAbsentInResolutionCache(
                     context,
-                    kotlinProjectStructureMetadata,
-                    moduleMetadata,
-                    level,
-                    diagnosticsReporter
-                ) ?: run {
+                    "kmp:$sourceSetName:$level:${kotlinProjectStructureMetadata == null}:${kmpMetadataFile.fileName}"
+                ) {
+                    resolveKmpLibraryWithSourceSet(
+                        sourceSetName,
+                        kmpMetadataFile,
+                        context,
+                        kotlinProjectStructureMetadata,
+                        moduleMetadata,
+                        level,
+                        diagnosticsReporter
+                    )
+                }?: run {
                     logger.debug("Source set $sourceSetName for Kotlin Multiplatform library ${kmpMetadataFile.fileName} is not found")
                     return@use null
                 }

@@ -10,6 +10,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import org.jetbrains.amper.core.AmperUserCacheRoot
+import org.jetbrains.amper.dependency.resolution.Cache
 import org.jetbrains.amper.dependency.resolution.CacheEntryKey
 import org.jetbrains.amper.dependency.resolution.Context
 import org.jetbrains.amper.dependency.resolution.DependencyGraph
@@ -24,7 +25,6 @@ import org.jetbrains.amper.dependency.resolution.MavenLocal
 import org.jetbrains.amper.dependency.resolution.MavenRepository
 import org.jetbrains.amper.dependency.resolution.Repository
 import org.jetbrains.amper.dependency.resolution.ResolutionLevel
-import org.jetbrains.amper.dependency.resolution.ResolutionPlatform
 import org.jetbrains.amper.dependency.resolution.ResolutionScope
 import org.jetbrains.amper.dependency.resolution.ResolvedGraph
 import org.jetbrains.amper.dependency.resolution.Resolver
@@ -68,12 +68,13 @@ private val logger = LoggerFactory.getLogger(ModuleDependencies::class.java)
  *  external transitive dependencies are not resolved and are absent in the resulting graphs,
  *  constructing unresolved graphs is done without NETWORK access)
  */
-class ModuleDependencies(
+class ModuleDependencies private constructor(
     val module: AmperModule,
     internal val userCacheRoot: AmperUserCacheRoot,
     internal val incrementalCache: IncrementalCache?,
     internal val openTelemetry: OpenTelemetry?,
     internal val includeNonExportedNative: Boolean = true,
+    private val sharedResolutionCache: Cache,
     internal val fileCacheBuilder: FileCacheBuilder.() -> Unit = { getAmperFileCacheBuilder(userCacheRoot) }
 ) {
 
@@ -88,8 +89,6 @@ class ModuleDependencies(
 
     private val mainDepsPerLeafPlatform: Map<Platform, PerFragmentDependencies>
     private val testDepsPerLeafPlatform: Map<Platform, PerFragmentDependencies>
-
-    private val contextMap: ConcurrentHashMap<ContextKey, Context> = ConcurrentHashMap<ContextKey, Context>()
 
     init {
         mainDepsPerPlatforms = perPlatformDependencies(false)
@@ -117,7 +116,7 @@ class ModuleDependencies(
             .filter { it.isTest == isTest }
             .sortedBy { it.name }
             .associateBy(keySelector = { it }) {
-                PerFragmentDependencies(it, userCacheRoot, incrementalCache, includeNonExportedNative)
+                PerFragmentDependencies(it, userCacheRoot, incrementalCache, sharedResolutionCache, includeNonExportedNative)
             }
 
     /**
@@ -126,7 +125,7 @@ class ModuleDependencies(
      * so that versions of module dependencies are aligned across all module fragments.
      *
      * Note: For CLI, resolution of leaf-platform's dependencies is enough, there is no need to resolve
-     * dependencies of other fragments (multiplatform ones) to align library versions accross the module..
+     * dependencies of other fragments (multiplatform ones) to align library versions across the module.
      *
      * @return the root umbrella node with the list of module nodes (one root module node per platform).
      * Each node from the list contains unresolved platform-specific dependencies of the module.
@@ -212,7 +211,7 @@ class ModuleDependencies(
                 templateContext = emptyContext(
                     userCacheRoot = userCacheRoot,
                     openTelemetry = openTelemetry,
-                    incrementalCache = incrementalCache
+                    incrementalCache = incrementalCache,
                 )
             )
         } else {
@@ -351,7 +350,7 @@ class ModuleDependencies(
             with (resolutionInput) {
                 resolveProjectDependencies(
                     moduleDependenciesList = moduleDependencies?.checkModules(this@resolveProjectDependencies)
-                        ?: moduleDependencies(userCacheRoot, incrementalCache, openTelemetry),
+                        ?: moduleDependencies(userCacheRoot, incrementalCache, openTelemetry, false),
                     resolutionInput,
                     projectRoot.root,
                 )
@@ -376,9 +375,9 @@ class ModuleDependencies(
             resolutionInput: ResolutionInput,
             projectRoot: Path,
         ): ResolvedGraph {
-            // Wrapping into per-project cache entry" +
-            // Goal: if nothing has changed, check inputs once, instead of checking inputs for every module where" +
-            //       one library from shared module is checked as an input as many times as many modules depend on it transitively"
+            // Wrapping into per-project cache entry
+            // Goal: if nothing has changed, check inputs once, instead of checking inputs for every module where
+            //       one library from shared module is checked as an input as many times as many modules depend on it transitively
             return with (resolutionInput) {
                 openTelemetry.spanBuilder("DR: Resolving project dependencies").use {
                     val moduleGraphs = buildList {
@@ -463,9 +462,10 @@ class ModuleDependencies(
             resolutionType: ResolutionType,
         ): ResolvedGraph {
             val moduleDependenciesList = with(resolutionInput) {
+                val sharedResolutionCache = Cache()
                 buildList {
                     modules.forEach {
-                        add(ModuleDependencies(it, userCacheRoot, incrementalCache, openTelemetry))
+                        add(ModuleDependencies(it, userCacheRoot, incrementalCache, openTelemetry, sharedResolutionCache = sharedResolutionCache))
                     }
                 }
             }
@@ -623,7 +623,7 @@ class ModuleDependencies(
             node: SerializableDependencyNode,
             additionalMatch: T.() -> Boolean = { true }
         ): T {
-            if (this == null || this.isEmpty())
+            if (this.isNullOrEmpty())
                 error("Deserialized node with key ${node.key} has no corresponding input node")
 
             this.forEach {
@@ -646,13 +646,64 @@ class ModuleDependencies(
          * The resulting list could be used as an entry point into module-wide dependency resoluion for the entire project
          * (represented by the given [Model])
          */
-        private fun Model.moduleDependencies(
+        fun Model.moduleDependencies(
+            userCacheRoot: AmperUserCacheRoot,
+            incrementalCache: IncrementalCache?,
+            openTelemetry: OpenTelemetry?,
+            includeNonExportedNative: Boolean = true,
+        ): List<ModuleDependencies> {
+            val sharedResolutionCache = Cache()
+            return modules.map {
+                ModuleDependencies(it, userCacheRoot, incrementalCache, openTelemetry, includeNonExportedNative, sharedResolutionCache)
+            }
+        }
+
+        /**
+         * Provide unresolved [ModuleDependencies] for the given module [AmperModule]
+         *
+         * This method could be used for caching [ModuleDependencies] per module instance to avoid recalculation of
+         * direct graph for the same module.
+         * Also, it is useful in case a nested cache based on a module dependency graph is built.
+         * Returned [ModuleDependencies] provides inputs that can be used for nested cache without a need to restore the graph itself
+         * (restoring the nested cache entry only).
+         *
+         * The resulting list could be used as an entry point into module-wide dependency resolution for the module
+         */
+        fun AmperModule.moduleDependencies(
             userCacheRoot: AmperUserCacheRoot,
             incrementalCache: IncrementalCache?,
             openTelemetry: OpenTelemetry?,
             includeNonExportedNative: Boolean = false,
-        ): List<ModuleDependencies> =
-            modules.map { ModuleDependencies(it, userCacheRoot, incrementalCache, openTelemetry, includeNonExportedNative) }
+        ): ModuleDependencies {
+            val sharedResolutionCache = Cache()
+            return ModuleDependencies(this, userCacheRoot, incrementalCache, openTelemetry, includeNonExportedNative, sharedResolutionCache)
+        }
+
+        /**
+         * Returns a dependencies sequence of the given module in the resolution scope
+         * of the given [platform], [isTest] and [dependencyReason].
+         */
+        fun AmperModule.getDependentAmperModules(
+            isTest: Boolean,
+            platform: Platform,
+            dependencyReason: ResolutionScope,
+            userCacheRoot: AmperUserCacheRoot,
+            incrementalCache: IncrementalCache,
+            openTelemetry: OpenTelemetry?,
+        ) : Sequence<AmperModule> {
+            val moduleDependencies = moduleDependencies(userCacheRoot, incrementalCache, openTelemetry, true)
+            return moduleDependencies
+                .forPlatform(platform = platform, isTest = isTest)
+                .forScope(scope = dependencyReason)
+                .getModuleDependencies()
+        }
+
+        private fun ModuleDependencyNodeWithModuleAndContext.getModuleDependencies(): Sequence<AmperModule> {
+            return distinctBfsSequence { child, _ ->  child is ModuleDependencyNodeWithModuleAndContext }
+                .drop(1)
+                .filterIsInstance<ModuleDependencyNodeWithModuleAndContext>()
+                .map { it.module }
+        }
 
         /**
          * Provide unresolved [ModuleDependencies] for all modules of the given AOM [Model].
@@ -689,6 +740,7 @@ class PerFragmentDependencies(
     val fragment: Fragment,
     userCacheRoot: AmperUserCacheRoot,
     incrementalCache: IncrementalCache?,
+    sharedResolutionCache: Cache,
     internal val includeNonExportedNative: Boolean = true,
 ) {
     /**
@@ -706,7 +758,8 @@ class PerFragmentDependencies(
             dependencyReason = ResolutionScope.COMPILE,
             userCacheRoot = userCacheRoot,
             incrementalCache = incrementalCache,
-            includeNonExportedNative = includeNonExportedNative
+            includeNonExportedNative = includeNonExportedNative,
+            sharedResolutionCache = sharedResolutionCache,
         )
     }
 
@@ -728,51 +781,42 @@ class PerFragmentDependencies(
                 dependencyReason = ResolutionScope.RUNTIME,
                 userCacheRoot = userCacheRoot,
                 incrementalCache = incrementalCache,
+                sharedResolutionCache = sharedResolutionCache,
             )
         }
     }
 
+    fun forScope(scope: ResolutionScope) = when (scope) {
+        ResolutionScope.COMPILE -> compileDeps
+        ResolutionScope.RUNTIME -> runtimeDeps ?: compileDeps
+    }
+
     val compileDepsCoordinates: List<MavenCoordinates> by lazy { compileDeps.getExternalDependencies() }
     val runtimeDepsCoordinates: List<MavenCoordinates> by lazy { runtimeDeps?.getExternalDependencies() ?: emptyList() }
-}
 
-fun AmperModule.buildDependenciesGraph(
-    isTest: Boolean,
-    platform: Platform,
-    dependencyReason: ResolutionScope,
-    includeNonExportedNative: Boolean = true,
-    userCacheRoot: AmperUserCacheRoot,
-    incrementalCache: IncrementalCache
-): ModuleDependencyNodeWithModuleAndContext = buildDependenciesGraph(
-    isTest, setOf(platform), dependencyReason, includeNonExportedNative, userCacheRoot, incrementalCache)
+    private fun AmperModule.buildDependenciesGraph(
+        isTest: Boolean,
+        platforms: Set<Platform>,
+        dependencyReason: ResolutionScope,
+        includeNonExportedNative: Boolean = true,
+        userCacheRoot: AmperUserCacheRoot,
+        incrementalCache: IncrementalCache?,
+        sharedResolutionCache: Cache,
+    ): ModuleDependencyNodeWithModuleAndContext {
+        val resolutionPlatform = platforms.map { it.toResolutionPlatform()
+            ?: throw IllegalArgumentException("Dependency resolution is not supported for the platform $it") }.toSet()
 
-fun AmperModule.buildDependenciesGraph(
-    isTest: Boolean,
-    platforms: Set<Platform>,
-    dependencyReason: ResolutionScope,
-    includeNonExportedNative: Boolean = true,
-    userCacheRoot: AmperUserCacheRoot,
-    incrementalCache: IncrementalCache?
-): ModuleDependencyNodeWithModuleAndContext {
-    val resolutionPlatform = platforms.map { it.toResolutionPlatform()
-        ?: throw IllegalArgumentException("Dependency resolution is not supported for the platform $it") }.toSet()
-
-    return with(moduleDependenciesResolver) {
-        resolveDependenciesGraph(
-            DependenciesFlowType.ClassPathType(dependencyReason, resolutionPlatform, isTest, includeNonExportedNative),
-            getAmperFileCacheBuilder(userCacheRoot),
-            GlobalOpenTelemetry.get(),
-            incrementalCache
-        )
+        return with(moduleDependenciesResolver) {
+            resolveDependenciesGraph(
+                DependenciesFlowType.ClassPathType(dependencyReason, resolutionPlatform, isTest, includeNonExportedNative),
+                getAmperFileCacheBuilder(userCacheRoot),
+                GlobalOpenTelemetry.get(),
+                incrementalCache,
+                sharedResolutionCache
+            )
+        }
     }
 }
-
-private data class ContextKey(
-    val scope: ResolutionScope,
-    val platforms: Set<ResolutionPlatform>,
-    val isTest: Boolean,
-    val repositories: Set<Repository>
-)
 
 enum class ResolutionType(
     val includeMain: Boolean,

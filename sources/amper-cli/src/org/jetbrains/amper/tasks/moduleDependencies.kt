@@ -4,12 +4,12 @@
 
 package org.jetbrains.amper.tasks
 
+import io.opentelemetry.api.GlobalOpenTelemetry
 import org.jetbrains.amper.core.AmperUserCacheRoot
 import org.jetbrains.amper.dependency.resolution.ResolutionScope
 import org.jetbrains.amper.frontend.AmperModule
 import org.jetbrains.amper.frontend.Platform
-import org.jetbrains.amper.frontend.dr.resolver.ModuleDependencyNodeWithModuleAndContext
-import org.jetbrains.amper.frontend.dr.resolver.buildDependenciesGraph
+import org.jetbrains.amper.frontend.dr.resolver.ModuleDependencies
 import org.jetbrains.amper.incrementalcache.IncrementalCache
 
 /**
@@ -22,15 +22,6 @@ fun AmperModule.getModuleDependencies(
     dependencyReason: ResolutionScope,
     userCacheRoot: AmperUserCacheRoot,
     incrementalCache: IncrementalCache
-) : Sequence<AmperModule> {
-    val fragmentsModuleDependencies =
-        buildDependenciesGraph(isTest, platform, dependencyReason, true, userCacheRoot, incrementalCache)
-    return fragmentsModuleDependencies.getModuleDependencies()
-}
-
-private fun ModuleDependencyNodeWithModuleAndContext.getModuleDependencies(): Sequence<AmperModule> {
-    return distinctBfsSequence { child, _ ->  child is ModuleDependencyNodeWithModuleAndContext }
-        .drop(1)
-        .filterIsInstance<ModuleDependencyNodeWithModuleAndContext>()
-        .map { it.module }
+) : Sequence<AmperModule> = with(ModuleDependencies) {
+    getDependentAmperModules(isTest, platform, dependencyReason, userCacheRoot, incrementalCache,GlobalOpenTelemetry.get())
 }

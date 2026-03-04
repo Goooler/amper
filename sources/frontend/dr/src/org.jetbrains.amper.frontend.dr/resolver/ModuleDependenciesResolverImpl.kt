@@ -6,6 +6,7 @@ package org.jetbrains.amper.frontend.dr.resolver
 import io.opentelemetry.api.OpenTelemetry
 import kotlinx.serialization.modules.SerializersModuleBuilder
 import org.jetbrains.amper.core.AmperUserCacheRoot
+import org.jetbrains.amper.dependency.resolution.Cache
 import org.jetbrains.amper.dependency.resolution.DependencyGraph.Companion.toSerializableReference
 import org.jetbrains.amper.dependency.resolution.DependencyGraphContext
 import org.jetbrains.amper.dependency.resolution.DependencyNode
@@ -40,10 +41,12 @@ internal class ModuleDependenciesResolverImpl: ModuleDependenciesResolver {
         dependenciesFlowType: DependenciesFlowType.ClassPathType,
         fileCacheBuilder: FileCacheBuilder.() -> Unit,
         openTelemetry: OpenTelemetry?,
-        incrementalCache: IncrementalCache?
+        incrementalCache: IncrementalCache?,
+        sharedResolutionCache: Cache,
     ): ModuleDependencyNodeWithModuleAndContext {
         val resolutionFlow = Classpath(dependenciesFlowType)
-        return resolutionFlow.directDependenciesGraph(this, fileCacheBuilder, openTelemetry, incrementalCache)
+        return resolutionFlow.directDependenciesGraph(
+            this, fileCacheBuilder, openTelemetry, incrementalCache, sharedResolutionCache)
     }
 
     @Deprecated("To be redesigned")
@@ -62,7 +65,7 @@ internal class ModuleDependenciesResolverImpl: ModuleDependenciesResolver {
     override suspend fun AmperModule.resolveDependencies(resolutionInput: ResolutionInput): ModuleDependencyNode {
         with(resolutionInput) {
             val moduleDependenciesGraph = resolveDependenciesGraph(
-                dependenciesFlowType as DependenciesFlowType.ClassPathType, fileCacheBuilder, openTelemetry, incrementalCache)
+                dependenciesFlowType as DependenciesFlowType.ClassPathType, fileCacheBuilder, openTelemetry, incrementalCache, Cache())
             val resolvedGraph = moduleDependenciesGraph.resolveDependencies(resolutionDepth, resolutionLevel, downloadSources)
             return resolvedGraph.root as ModuleDependencyNode
         }
@@ -80,7 +83,7 @@ internal class ModuleDependenciesResolverImpl: ModuleDependenciesResolver {
             is DependenciesFlowType.IdeSyncType -> IdeSync(dependenciesFlowType)
         }
 
-        return resolutionFlow.directDependenciesGraph(this, fileCacheBuilder, openTelemetry, incrementalCache)
+        return resolutionFlow.directDependenciesGraph(this, fileCacheBuilder, openTelemetry, incrementalCache, Cache())
     }
 
     @Deprecated("Use resolveModuleDependencies instead. To be removed")
