@@ -17,7 +17,6 @@ import org.jetbrains.amper.frontend.Platform
 import org.jetbrains.amper.frontend.TaskName
 import org.jetbrains.amper.CliReportingMavenResolver
 import org.jetbrains.amper.frontend.dr.resolver.ModuleDependencies
-import org.jetbrains.amper.frontend.dr.resolver.ModuleDependencyNodeWithModuleAndContext
 import org.jetbrains.amper.frontend.dr.resolver.AmperResolutionSettings
 import org.jetbrains.amper.incrementalcache.IncrementalCache
 import org.jetbrains.amper.tasks.EmptyTaskResult
@@ -179,11 +178,6 @@ class InitialMavenPhaseTask(parameters: PhaseTaskParameters) : BeforeMavenPhaseT
         CliReportingMavenResolver(parameters.cacheRoot, parameters.incrementalCache)
     }
 
-    /**
-     * [ModuleDependencyNodeWithModuleAndContext] cannot be reused, as its transitive children can change after
-     * resolve and as a result - change cache key that is used within DR incremental request.
-     * Thus, we need to create a new instance of the node every time here.
-     */
     private fun getModuleDependencies() =
         with(ModuleDependencies) {
             val resolutionSettings = AmperResolutionSettings(

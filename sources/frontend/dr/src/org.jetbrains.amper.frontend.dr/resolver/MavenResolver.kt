@@ -11,11 +11,11 @@ import org.jetbrains.amper.dependency.resolution.DependencyNode
 import org.jetbrains.amper.dependency.resolution.JavaVersion
 import org.jetbrains.amper.dependency.resolution.MavenCoordinates
 import org.jetbrains.amper.dependency.resolution.MavenDependencyNode
-import org.jetbrains.amper.dependency.resolution.MavenDependencyNodeWithContext
 import org.jetbrains.amper.dependency.resolution.Repository
 import org.jetbrains.amper.dependency.resolution.ResolutionPlatform
 import org.jetbrains.amper.dependency.resolution.ResolutionScope
 import org.jetbrains.amper.dependency.resolution.ResolvedGraph
+import org.jetbrains.amper.dependency.resolution.Resolver
 import org.jetbrains.amper.dependency.resolution.RootDependencyNodeWithContext
 import org.jetbrains.amper.frontend.dr.resolver.diagnostics.collectBuildProblems
 import org.jetbrains.amper.incrementalcache.IncrementalCache
@@ -27,7 +27,7 @@ import org.jetbrains.amper.telemetry.use
 import kotlin.io.path.pathString
 
 /**
- * An adapter around [ModuleDependenciesResolver] that creates root node, 
+ * An adapter around [Resolver] that creates root node,
  * configures its context and span properly, before performing actual resolve.
  */
 open class MavenResolver(
@@ -43,27 +43,22 @@ open class MavenResolver(
         scope: ResolutionScope,
         platform: ResolutionPlatform,
         resolveSourceMoniker: String,
-    ): ResolvedGraph = resolveWithContext(repositories, scope, platform, resolveSourceMoniker) { context ->
-        RootDependencyNodeWithContext(
-            templateContext = context,
-            children = coordinates.map {
-                MavenDependencyNodeWithContext(context, it, false)
-            },
-        )
-    }
+    ): ResolvedGraph = resolveBomAware(repositories, scope, platform, resolveSourceMoniker,
+        mavenCoordinates = coordinates.map { MavenCoordinatesExt(it) }
+    )
 
     /**
-     * Create a [Context] and resolve dependencies on a passed [rootBuilder].
+     * Create a [Context] and resolve dependencies of the passed [mavenCoordinates].
      * Also, create respective span.
      */
-    suspend fun resolveWithContext(
+    suspend fun resolveBomAware(
         repositories: List<Repository>,
         scope: ResolutionScope,
         platform: ResolutionPlatform,
         resolveSourceMoniker: String,
         resolutionDepth: ResolutionDepth = ResolutionDepth.GRAPH_FULL,
         jvmRelease: JavaVersion? = null,
-        rootBuilder: (Context) -> RootDependencyNodeWithContext,
+        mavenCoordinates: List<MavenCoordinatesExt>,
     ): ResolvedGraph = spanBuilder("mavenResolve")
         .setAttribute("repositories", repositories.joinToString(" "))
         .setAttribute("user-cache-root", userCacheRoot.path.pathString)
@@ -82,40 +77,31 @@ open class MavenResolver(
                 this.incrementalCache = this@MavenResolver.incrementalCache
                 this.jdkVersion = jvmRelease
             }
-            resolve(rootBuilder(context), resolveSourceMoniker, resolutionDepth)
+            val root = RootDependencyNodeWithContext(
+                templateContext = context,
+                children = mavenCoordinates.map { context.toMavenDependencyNode(it.coordinates, it.isBom) }
+            )
+
+            resolveAndReport(resolveSourceMoniker) {
+               Resolver().resolveDependencies(root)
+            }
         }
 
     /**
      * Perform a resolution over a passed [root].
-     *
-     * todo (AB) : This functional expose low-level API
-     * todo (AB) : making calling side to prepare DependencyNodeHolderWithContext with properly initialized context.
-     *  It should be replaced with the method that takes a list of maven coordinates and resolution parameters
-     *      and create context and nodes inside, hiding those details from caller)
      */
-    suspend fun resolve(
-        root: RootDependencyNodeWithContext,
+    private suspend fun resolveAndReport(
         resolveSourceMoniker: String,
-        resolutionDepth: ResolutionDepth = ResolutionDepth.GRAPH_FULL,
-    ): ResolvedGraph = spanBuilder("mavenResolve")
-        .setAttribute("coordinates", root.getExternalDependencies().joinToString(" "))
-        .apply {
-            val settings = root.children.firstOrNull()?.context?.settings ?: root.context.settings
-            setAttribute("repositories", settings.repositories.joinToString(" "))
-            settings.platforms.singleOrNull()?.nativeTarget?.let { setAttribute("nativeTarget", it) }
-            settings.platforms.singleOrNull()?.wasmTarget?.let { setAttribute("wasmTarget", it) }
-        }
-        .use {
-            val resolutionRunSettings = ResolutionRunSettings(resolutionDepth)
-            with(ModuleDependencies) { root.resolveDependencies(resolutionRunSettings) }
-                .also { resolvedGraph ->
-                    // Collecting diagnostics from the resolved graph
-                    val reporter = CollectingProblemReporter().also {
-                        collectBuildProblems(graph = resolvedGraph.root, it, Level.Warning)
-                    }
-                    processProblems(reporter.problems, resolveSourceMoniker)
+        resolve: suspend () -> ResolvedGraph
+    ): ResolvedGraph =
+        resolve()
+            .also { resolvedGraph ->
+                // Collecting diagnostics from the resolved graph
+                val reporter = CollectingProblemReporter().also {
+                    collectBuildProblems(graph = resolvedGraph.root, it, Level.Warning)
                 }
-        }
+                processProblems(reporter.problems, resolveSourceMoniker)
+            }
 
     /**
      * Perform a resolution of module dependencies [moduleDependencies].
@@ -125,20 +111,14 @@ open class MavenResolver(
         isTest: Boolean,
         resolveSourceMoniker: String,
         resolutionDepth: ResolutionDepth = ResolutionDepth.GRAPH_FULL,
-    ): ResolvedGraph =
+    ): ResolvedGraph = resolveAndReport(resolveSourceMoniker) {
         ModuleDependencies.resolveModuleDependencies(
             moduleDependenciesList = listOf(moduleDependencies),
             resolutionRunSettings = ResolutionRunSettings(resolutionDepth = resolutionDepth),
             leafPlatformsOnly = true,
             filter = ModuleResolutionFilter(resolutionType = if(isTest) ResolutionType.TEST else ResolutionType.MAIN),
         )
-            .also { resolvedGraph ->
-                // Collecting diagnostics from the resolved graph
-                val reporter = CollectingProblemReporter().also {
-                    collectBuildProblems(graph = resolvedGraph.root, it, Level.Warning)
-                }
-                processProblems(reporter.problems, resolveSourceMoniker)
-            }
+    }
 
     protected open fun processProblems(buildProblems: List<BuildProblem>, resolveSourceMoniker: String) =
         Unit
@@ -155,16 +135,21 @@ fun DependencyNode.getExternalDependencies(directOnly: Boolean = false): List<Ma
 }
 
 private fun DependencyNode.fillExternalDependencies(
-    dependenciesList: MutableSet<MavenCoordinates>,
+    dependencies: MutableSet<MavenCoordinates>,
     directOnly: Boolean = false,
 ) {
     children.forEach {
         // There can be all sorts of wrapper types here, which are somewhat internal to the dependency resolution module.
         // We only want to add external maven dependencies here anyway, or recurse, so let's not enumerate.
         if (it is MavenDependencyNode) {
-            dependenciesList.add(it.mavenCoordinates())
+            dependencies.add(it.mavenCoordinates())
         } else if (!directOnly) {
-            it.fillExternalDependencies(dependenciesList, directOnly = false)
+            it.fillExternalDependencies(dependencies, directOnly = false)
         }
     }
 }
+
+data class MavenCoordinatesExt(
+    val coordinates: MavenCoordinates,
+    val isBom: Boolean = false,
+)

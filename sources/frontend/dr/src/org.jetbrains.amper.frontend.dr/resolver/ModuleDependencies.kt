@@ -43,6 +43,7 @@ import org.jetbrains.amper.frontend.Model
 import org.jetbrains.amper.frontend.Platform
 import org.jetbrains.amper.frontend.RepositoriesModulePart
 import org.jetbrains.amper.frontend.dr.resolver.ModuleDependencies.Companion.moduleDependencies
+import org.jetbrains.amper.frontend.dr.resolver.flow.Classpath
 import org.jetbrains.amper.frontend.dr.resolver.flow.defaultRepositories
 import org.jetbrains.amper.frontend.dr.resolver.flow.toRepository
 import org.jetbrains.amper.frontend.dr.resolver.flow.toResolutionPlatform
@@ -338,6 +339,31 @@ class ModuleDependencies private constructor(
             projectRoot = projectRoot.root,
         )
 
+        suspend fun Model.buildProjectDependenciesGraph(
+            resolutionSettings: AmperResolutionSettings,
+            moduleDependenciesList: List<ModuleDependencies>
+        ): List<DependencyNodeHolderWithContext> {
+            moduleDependenciesList.checkModules(this@buildProjectDependenciesGraph)
+
+            return buildProjectDependenciesGraph(resolutionSettings, moduleDependenciesList)
+        }
+
+        private suspend fun buildProjectDependenciesGraph(
+            resolutionSettings: AmperResolutionSettings,
+            moduleDependenciesList: List<ModuleDependencies>
+        ): List<DependencyNodeHolderWithContext> {
+            val openTelemetry = resolutionSettings.openTelemetry
+            return openTelemetry.spanBuilder("DR: building project graph").use {
+                buildList {
+                    moduleDependenciesList.forEach {
+                        //  1. Tests and main should be resolved separately in IdeSync-mode
+                        add(it.allFragmentsGraph(isForTests = false, flattenGraph = true))
+                        add(it.allFragmentsGraph(isForTests = true, flattenGraph = true))
+                    }
+                }
+            }
+        }
+
         /**
          * This is an entry point into the module-wide resolution of the project.
          * It resolves dependencies of all modules independently.
@@ -367,13 +393,7 @@ class ModuleDependencies private constructor(
             //       one library from shared module is checked as an input as many times as many modules depend on it transitively
             return with (resolutionRunSettings) {
                 openTelemetry.spanBuilder("DR: Resolving project dependencies").use {
-                    val moduleGraphs = buildList {
-                        moduleDependenciesList.forEach {
-                            //  1. Tests and main should be resolved separately in IdeSync-mode
-                            add(it.allFragmentsGraph(isForTests = false, flattenGraph = true))
-                            add(it.allFragmentsGraph(isForTests = true, flattenGraph = true))
-                        }
-                    }
+                    val moduleGraphs = buildProjectDependenciesGraph(resolutionSettings, moduleDependenciesList)
 
                     val resolutionId = CacheEntryKey.CompositeCacheEntryKey(
                         listOf(
@@ -531,10 +551,11 @@ class ModuleDependencies private constructor(
         }
 
         /**
-         * todo (AB) : This functional expose low-level API
-         * todo (AB) : Make it private after refactoring of the usage in [ModuleDependenciesResolverImpl]
+         * Resolve dependencies of the given [DependencyNodeHolderWithContext]
+         *
+         * This function should be kept private as it exposes low-level resolution API.
          */
-        internal suspend fun DependencyNodeHolderWithContext.resolveDependencies(
+        private suspend fun DependencyNodeHolderWithContext.resolveDependencies(
             resolutionRunSettings: ResolutionRunSettings,
         ): ResolvedGraph {
             val root = this@resolveDependencies
@@ -715,7 +736,7 @@ class PerFragmentDependencies(
      * This graph is a part of the input for dependency resolution of the module.
      * See [ModuleDependencies.allLeafPlatformsGraph] for further details.
      */
-    val compileDeps: ModuleDependencyNodeWithModuleAndContext by lazy {
+    internal val compileDeps: ModuleDependencyNodeWithModuleAndContext by lazy {
         fragment.module.buildDependenciesGraph(
             isTest = fragment.isTest,
             platforms = fragment.platforms,
@@ -733,7 +754,7 @@ class PerFragmentDependencies(
      * This graph is a part of the input for dependency resolution of the module.
      * See [ModuleDependencies.allLeafPlatformsGraph] for further details.
      */
-    val runtimeDeps: ModuleDependencyNodeWithModuleAndContext? by lazy {
+    internal val runtimeDeps: ModuleDependencyNodeWithModuleAndContext? by lazy {
         when {
             fragment.platforms.singleOrNull()?.isDescendantOf(Platform.NATIVE) == true
                     && resolutionSettings.includeNonExportedNative -> null  // The native world doesn't distinguish compile/runtime classpath
@@ -747,13 +768,15 @@ class PerFragmentDependencies(
         }
     }
 
-    fun forScope(scope: ResolutionScope) = when (scope) {
+    internal fun forScope(scope: ResolutionScope) = when (scope) {
         ResolutionScope.COMPILE -> compileDeps
         ResolutionScope.RUNTIME -> runtimeDeps ?: compileDeps
     }
 
     val compileDepsCoordinates: List<MavenCoordinates> by lazy { compileDeps.getExternalDependencies() }
     val runtimeDepsCoordinates: List<MavenCoordinates> by lazy { runtimeDeps?.getExternalDependencies() ?: emptyList() }
+
+    val compileDirectDepsCoordinates: List<MavenCoordinates> by lazy { compileDeps.getExternalDependencies(true) }
 
     private fun AmperModule.buildDependenciesGraph(
         isTest: Boolean,
@@ -765,13 +788,13 @@ class PerFragmentDependencies(
         val resolutionPlatform = platforms.map { it.toResolutionPlatform()
             ?: throw IllegalArgumentException("Dependency resolution is not supported for the platform $it") }.toSet()
 
-        return with(moduleDependenciesResolver) {
-            resolveDependenciesGraph(
-                DependenciesFlowType.ClassPathType(dependencyReason, resolutionPlatform, isTest, resolutionSettings.includeNonExportedNative),
-                resolutionSettings,
-                sharedResolutionCache
-            )
-        }
+        val classpathResolutionFlow = Classpath(DependenciesFlowType.ClassPathType(
+            dependencyReason, resolutionPlatform, isTest, resolutionSettings.includeNonExportedNative
+        ))
+
+        return classpathResolutionFlow.directDependenciesGraph(
+            this@buildDependenciesGraph, resolutionSettings, sharedResolutionCache
+        )
     }
 }
 

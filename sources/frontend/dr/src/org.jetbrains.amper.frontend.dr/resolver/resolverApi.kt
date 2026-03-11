@@ -6,7 +6,6 @@ package org.jetbrains.amper.frontend.dr.resolver
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
-import org.jetbrains.amper.dependency.resolution.Cache
 import org.jetbrains.amper.dependency.resolution.CacheEntryKey
 import org.jetbrains.amper.dependency.resolution.Context
 import org.jetbrains.amper.dependency.resolution.DependencyGraphContext
@@ -39,9 +38,6 @@ import org.jetbrains.amper.frontend.api.PsiTrace
 import org.jetbrains.amper.frontend.api.ResolvedReferenceTrace
 import org.jetbrains.amper.frontend.api.TransformedValueTrace
 import org.jetbrains.amper.frontend.dr.resolver.flow.toPlatform
-import kotlin.error
-
-val moduleDependenciesResolver: ModuleDependenciesResolver = ModuleDependenciesResolverImpl()
 
 enum class ResolutionDepth {
     GRAPH_ONLY,
@@ -58,15 +54,6 @@ sealed interface DependenciesFlowType {
     ) : DependenciesFlowType
 
     data class IdeSyncType(val aom: Model) : DependenciesFlowType
-}
-
-interface ModuleDependenciesResolver {
-    // todo (AB) : [AMPER-4905] Move to ModuleDependencies
-    fun AmperModule.resolveDependenciesGraph(
-        dependenciesFlowType: DependenciesFlowType.ClassPathType,
-        resolutionSettings: AmperResolutionSettings,
-        sharedResolutionCache: Cache,
-    ): ModuleDependencyNodeWithModuleAndContext
 }
 
 /**
@@ -111,7 +98,7 @@ fun ModuleDependencyNode.getKey(): Key<DependencyNodeHolder> = Key<DependencyNod
     )).computeKey()
 )
 
-class ModuleDependencyNodeWithModuleAndContext(
+class ModuleDependencyNodeWithModuleAndContext internal constructor(
     val module: AmperModule,
     override val isForTests: Boolean,
     children: List<DependencyNodeWithContext>,
@@ -191,11 +178,11 @@ internal class SerializableModuleDependencyNodeWithModule internal constructor(
 
 interface DirectFragmentDependencyNode: DependencyNodeHolder {
     val fragmentName: String
-    val dependencyNode: DependencyNode
+    val dependencyNode: MavenDependencyNode
     val notation: MavenDependencyBase
 }
 
-class DirectFragmentDependencyNodeHolderWithContext(
+internal class DirectFragmentDependencyNodeHolderWithContext(
     override val dependencyNode: MavenDependencyNodeWithContext,
     val fragment: Fragment,
     templateContext: Context,

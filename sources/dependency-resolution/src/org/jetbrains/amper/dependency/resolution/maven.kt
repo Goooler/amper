@@ -165,7 +165,7 @@ class MavenDependencyNodeWithContext internal constructor(
 
     override val parents: Set<DependencyNode> get() = context.nodeParents
 
-    constructor(
+    internal constructor(
         templateContext: Context,
         coordinates: MavenCoordinates,
         isBom: Boolean,
@@ -439,7 +439,7 @@ internal class SerializableMavenDependencyConstraintNode internal constructor(
 
 }
 
-internal class MavenDependencyConstraintNodeWithContext internal constructor(
+class MavenDependencyConstraintNodeWithContext internal constructor(
     templateContext: Context,
     dependencyConstraint: MavenDependencyConstraintImpl,
     parentNodes: Set<DependencyNodeWithContext> = emptySet(),

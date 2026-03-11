@@ -31,7 +31,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 private val logger = LoggerFactory.getLogger("resolutionFlow.kt")
 
-interface DependenciesFlow<T: DependenciesFlowType> {
+internal interface DependenciesFlow<T: DependenciesFlowType> {
     fun directDependenciesGraph(
         module: AmperModule,
         resolutionSettings: AmperResolutionSettings,
@@ -41,7 +41,7 @@ interface DependenciesFlow<T: DependenciesFlowType> {
     fun resolutionCacheEntryKey(modules: List<AmperModule>): CacheEntryKey
 }
 
-abstract class AbstractDependenciesFlow<T: DependenciesFlowType>(
+internal abstract class AbstractDependenciesFlow<T: DependenciesFlowType>(
     val flowType: T,
 ): DependenciesFlow<T> {
 

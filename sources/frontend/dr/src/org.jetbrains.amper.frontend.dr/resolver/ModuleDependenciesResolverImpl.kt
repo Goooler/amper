@@ -21,21 +21,6 @@ import org.jetbrains.amper.frontend.dr.resolver.flow.Classpath
 import org.slf4j.LoggerFactory
 import kotlin.reflect.KClass
 
-private val logger = LoggerFactory.getLogger(ModuleDependenciesResolverImpl::class.java)
-
-internal class ModuleDependenciesResolverImpl: ModuleDependenciesResolver {
-
-    // todo (AB) : Move to ModuleDependencies
-    override fun AmperModule.resolveDependenciesGraph(
-        dependenciesFlowType: DependenciesFlowType.ClassPathType,
-        resolutionSettings: AmperResolutionSettings,
-        sharedResolutionCache: Cache,
-    ): ModuleDependencyNodeWithModuleAndContext {
-        val resolutionFlow = Classpath(dependenciesFlowType)
-        return resolutionFlow.directDependenciesGraph(this, resolutionSettings, sharedResolutionCache)
-    }
-}
-
 // todo (AB) : Extract to separate serialization-specific file
 internal class AmperDrSerializableTypesProvider: GraphSerializableTypesProvider {
     override fun getSerializableConverters() =

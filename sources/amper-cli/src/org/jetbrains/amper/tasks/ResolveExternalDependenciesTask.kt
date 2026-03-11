@@ -216,7 +216,7 @@ class ResolveExternalDependenciesTask(
                                     "fragments: ${fragments.userReadableList()}\n" +
                                     "repositories:\n${repositories.joinToString("\n").prependIndent("  ")}\n" +
                                     "direct dependencies:\n${
-                                        platformOnlyDependencies.compileDeps.getExternalDependencies(true)
+                                        platformOnlyDependencies.compileDirectDepsCoordinates
                                             .joinToString("\n")
                                             .prependIndent("  ")
                                     }\n" +

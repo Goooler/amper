@@ -37,7 +37,6 @@ import org.jetbrains.amper.frontend.dr.resolver.ModuleDependencyNode
 import org.jetbrains.amper.frontend.dr.resolver.ModuleResolutionFilter
 import org.jetbrains.amper.frontend.dr.resolver.ResolutionType
 import org.jetbrains.amper.frontend.dr.resolver.flow.toResolutionPlatform
-import org.jetbrains.amper.frontend.dr.resolver.moduleDependenciesResolver
 
 internal class ShowDependenciesCommand: AmperModelAwareCommand(name = "dependencies") {
 
@@ -131,7 +130,7 @@ internal class ShowDependenciesCommand: AmperModelAwareCommand(name = "dependenc
     ): List<DependencyNode> {
         val resolutionPlatformSetsToResolveFor = platformSetsToResolveFor.map { it.mapNotNull { it.toResolutionPlatform() }.toSet() }
 
-        val resolvedGraph: ResolvedGraph = with(moduleDependenciesResolver) {
+        val resolvedGraph: ResolvedGraph =
             // todo (AB) : Pass all modules at once (though prettyPrint works for a single resolved graph,
             //  but not for many combined graphs, see [isConstraintAffectingTheGraph])
             ModuleDependencies
@@ -144,7 +143,7 @@ internal class ShowDependenciesCommand: AmperModelAwareCommand(name = "dependenc
                     ),
                     filter = ModuleResolutionFilter(resolutionType = if (includeTests) ResolutionType.ALL else ResolutionType.MAIN),
                 )
-        }
+
 
         return resolutionPlatformSetsToResolveFor
             .flatMap { platforms ->
