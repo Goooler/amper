@@ -69,7 +69,7 @@ internal fun reportUnexpectedValue(
         is YamlValue.Sequence -> "sequence []"
         is YamlValue.UnknownCompound -> "compound value {}"
         is YamlValue.Missing -> {
-            reportParsing(unexpected, TreeDiagnosticId.MissingValue, "validation.structure.missing.value")
+            reporter.reportMessage(MissingValue(element = unexpected.psi, expectedType = expectedType))
             return
         }
         is YamlValue.Alias -> {
