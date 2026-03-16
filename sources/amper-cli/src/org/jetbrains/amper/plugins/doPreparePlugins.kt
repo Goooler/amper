@@ -9,6 +9,7 @@ import kotlinx.serialization.json.Json
 import org.jetbrains.amper.ProcessRunner
 import org.jetbrains.amper.cli.AmperProjectRoot
 import org.jetbrains.amper.cli.CliProblemReporter
+import org.jetbrains.amper.cli.lazyload.ExtraClasspath
 import org.jetbrains.amper.cli.userReadableError
 import org.jetbrains.amper.frontend.messages.FileWithRangesBuildProblemSource
 import org.jetbrains.amper.frontend.plugins.PluginManifest
@@ -16,7 +17,6 @@ import org.jetbrains.amper.incrementalcache.IncrementalCache
 import org.jetbrains.amper.incrementalcache.executeForSerializable
 import org.jetbrains.amper.jdk.provisioning.JdkProvider
 import org.jetbrains.amper.jvm.getDefaultJdk
-import org.jetbrains.amper.lazyload.ExtraClasspath
 import org.jetbrains.amper.plugins.schema.model.PluginData
 import org.jetbrains.amper.plugins.schema.model.PluginDataResponse
 import org.jetbrains.amper.plugins.schema.model.PluginDataResponse.DiagnosticKind
@@ -35,7 +35,6 @@ import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import kotlin.io.path.Path
 import kotlin.io.path.div
-import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.relativeTo
 
 internal suspend fun doPreparePlugins(

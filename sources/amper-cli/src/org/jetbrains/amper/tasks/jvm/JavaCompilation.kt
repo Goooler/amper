@@ -6,11 +6,11 @@ package org.jetbrains.amper.tasks.jvm
 
 import kotlinx.serialization.json.Json
 import org.jetbrains.amper.ProcessRunner
+import org.jetbrains.amper.cli.lazyload.ExtraClasspath
 import org.jetbrains.amper.frontend.AmperModule
 import org.jetbrains.amper.jdk.provisioning.Jdk
 import org.jetbrains.amper.jic.JicCompilationRequest
 import org.jetbrains.amper.jps.JicOutputAutoFlushWorkaround.deserializeJpsCompilerOutput
-import org.jetbrains.amper.lazyload.ExtraClasspath
 import org.jetbrains.amper.processes.ArgsMode
 import org.jetbrains.amper.processes.ProcessInput
 import org.jetbrains.amper.processes.ProcessOutputListener

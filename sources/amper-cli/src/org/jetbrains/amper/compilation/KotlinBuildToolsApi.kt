@@ -5,8 +5,8 @@
 package org.jetbrains.amper.compilation
 
 import org.apache.maven.artifact.versioning.ComparableVersion
+import org.jetbrains.amper.cli.lazyload.ExtraClasspath
 import org.jetbrains.amper.concurrency.AsyncConcurrentMap
-import org.jetbrains.amper.lazyload.ExtraClasspath
 import org.jetbrains.kotlin.buildtools.api.ExperimentalBuildToolsApi
 import org.jetbrains.kotlin.buildtools.api.KotlinLogger
 import org.jetbrains.kotlin.buildtools.api.KotlinToolchains

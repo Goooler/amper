@@ -9,6 +9,7 @@ import org.jetbrains.amper.ProcessRunner
 import org.jetbrains.amper.cli.AmperProjectRoot
 import org.jetbrains.amper.cli.AmperProjectTempRoot
 import org.jetbrains.amper.cli.CliProblemReporter
+import org.jetbrains.amper.cli.lazyload.ExtraClasspath
 import org.jetbrains.amper.cli.userReadableError
 import org.jetbrains.amper.compilation.singleLeafFragment
 import org.jetbrains.amper.composehotreload.recompiler.ENV_AMPER_BUILD_ROOT
@@ -25,7 +26,6 @@ import org.jetbrains.amper.jdk.provisioning.Jdk
 import org.jetbrains.amper.jdk.provisioning.JdkProvider
 import org.jetbrains.amper.jdk.provisioning.JdkProvisioningCriteria
 import org.jetbrains.amper.jdk.provisioning.orElse
-import org.jetbrains.amper.lazyload.ExtraClasspath
 import org.jetbrains.amper.run.ToolingArtifactsDownloader
 import org.jetbrains.amper.tasks.JvmMainRunSettings
 import org.jetbrains.amper.tasks.TaskResult
@@ -33,8 +33,6 @@ import org.jetbrains.amper.util.BuildType
 import java.io.File
 import java.net.ServerSocket
 import java.nio.file.Path
-import kotlin.io.path.Path
-import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.name
 import kotlin.io.path.pathString
 
