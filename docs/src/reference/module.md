@@ -498,6 +498,7 @@ Read more about [testing support](../user-guide/testing.md).
 | `debug: boolean`                 | `true`                       | (Only for [native targets](https://kotlinlang.org/docs/native-target-support.html)) Enable emitting debug information.                                               |
 | `freeCompilerArgs: string list`  | `[]`                         | Pass any [compiler option](https://kotlinlang.org/docs/compiler-reference.html#compiler-options) directly.                                                           |
 | `jsPlainObjects: object \| enum` |                              | Enable the Kotlin JS-plain-objects compiler plugin.                                                                                                                  |
+| `ksp: object`                    |                              | Configure [Kotlin Symbol Processing](../user-guide/advanced/ksp.md).                                                                                                 |
 | `languageVersion: enum`          | (major.minor from `version`) | Provide source compatibility with the specified version of Kotlin.                                                                                                   |
 | `noArg: object`                  |                              | Configure the [Kotlin no-arg compiler plugin](https://kotlinlang.org/docs/no-arg-plugin.html).                                                                       |
 | `optIns: enum list`              | `[]`                         | Enable usages of API that [requires opt-in](https://kotlinlang.org/docs/opt-in-requirements.html) with a requirement annotation with the given fully qualified name. |
@@ -626,6 +627,17 @@ settings:
       annotations: [ com.example.NoArg ]
       invokeInitializers: true
 ```
+
+#### `settings.kotlin.ksp`
+
+`settings.kotlin.ksp` configures the [Kotlin Symbol Processing mechanism](../user-guide/advanced/ksp.md),
+which allows processing Kotlin source code with custom processors (usually to generate extra code).
+
+| Attribute                               | Default | Description                                                                                                              |
+|-----------------------------------------|---------|--------------------------------------------------------------------------------------------------------------------------|
+| `version: string`                       | `2.3.6` | The version of KSP to use                                                                                                |  
+| `processors: string list`               | `[]`    | The list of KSP processors to use. Each item can be a path to a local module, a catalog reference, or maven coordinates. |  
+| `processorOptions: map<string, string>` | `{}`    | Some options to pass to KSP processors. Refer to each processor documentation for details.                               |  
 
 ### `settings.ktor`
 
