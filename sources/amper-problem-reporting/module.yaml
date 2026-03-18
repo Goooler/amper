@@ -9,6 +9,7 @@ apply:
 
 dependencies:
   - $libs.jetbrains.annotations # Needed to have @Nls applicable to type
+  - ../libraries/stdlib-extended
 
 settings:
   jvm:
