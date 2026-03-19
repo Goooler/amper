@@ -117,10 +117,13 @@ dependencies@jvm:
 
 ## `description`
 
-The description of the module.
+An optional description of the module. This description supports Markdown formatting and can span multiple lines.
 
-It can be used in CLI introspection commands (`./amper show modules`) or in UIs to show information about modules.
-For libraries, it also used as a description in published metadata by default.
+When writing multiline descriptions, the first line should act as a short summary that can stand on its own, like 
+commit messages. Only the first line is displayed by default in `./amper show modules`.
+
+This description is used by the CLI and by IDEs to show information about the module.
+For libraries, it is also used as a description in published metadata by default.
 
 ## `layout`
 

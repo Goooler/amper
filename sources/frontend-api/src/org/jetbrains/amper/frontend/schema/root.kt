@@ -59,7 +59,13 @@ class Module : Base() {
     @SchemaDoc("Defines what should be produced out of the module. Read more about the [product types]($userGuideUrl/product-types/)")
     val product by value<ModuleProduct>()
 
-    @SchemaDoc("An optional description of the module.")
+    @SchemaDoc("An optional description of the module. This description supports Markdown formatting and can span " +
+            "multiple lines.\n\n" +
+            "When writing multiline descriptions, the first line should act as a short summary that can stand on its " +
+            "own, like commit messages. Only the first line is displayed by default in `./amper show modules`.\n\n" +
+            "This description is used by the CLI and by IDEs to show information about the module. " +
+            "For libraries, it is also used as a description in published metadata by default."
+    )
     val description by nullableValue<String>()
 
     @SchemaDoc("Defines names for custom groups of platforms. This is useful to share code between platforms if the " +
