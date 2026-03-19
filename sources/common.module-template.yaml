@@ -53,4 +53,7 @@ settings:
     release: 21
   java:
     compileIncrementally: false # Disabled because of AMPER-4868
+  internal:
+    excludeDependencies:
+      - com.intellij.platform:kotlinx-coroutines-core-jvm
 
