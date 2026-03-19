@@ -14,7 +14,7 @@ import org.jetbrains.amper.frontend.Model
 import org.jetbrains.amper.frontend.Notation
 import org.jetbrains.amper.frontend.RepositoriesModulePart
 import org.jetbrains.amper.frontend.aomBuilder.readProjectModel
-import org.jetbrains.amper.frontend.project.StandaloneAmperProjectContext
+import org.jetbrains.amper.frontend.project.AmperProjectContext
 import org.jetbrains.amper.frontend.schema.ProductType
 import org.jetbrains.amper.frontend.schema.Repository.Companion.SpecialMavenLocalUrl
 import org.jetbrains.amper.problems.reporting.NoopProblemReporter
@@ -268,7 +268,7 @@ class AmperProjectStructureTest {
     }
 
     private fun readAmperProjectModel(): Model = with(NoopProblemReporter) {
-        val projectContext = StandaloneAmperProjectContext.create(Dirs.amperCheckoutRoot, buildDir = null, project = null)
+        val projectContext = AmperProjectContext.create(rootDir = Dirs.amperCheckoutRoot, buildDir = null)
             ?: error("Invalid project root: ${Dirs.amperCheckoutRoot}")
         projectContext.readProjectModel(pluginData = emptyList(), mavenPluginXmls = emptyList())
     }

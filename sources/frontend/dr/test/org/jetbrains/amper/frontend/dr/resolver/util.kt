@@ -8,7 +8,7 @@ import org.jetbrains.amper.core.AmperUserCacheRoot
 import org.jetbrains.amper.dependency.resolution.DependencyNode
 import org.jetbrains.amper.frontend.Model
 import org.jetbrains.amper.frontend.aomBuilder.readProjectModel
-import org.jetbrains.amper.frontend.project.StandaloneAmperProjectContext
+import org.jetbrains.amper.frontend.project.AmperProjectContext
 import org.jetbrains.amper.problems.reporting.NoopProblemReporter
 import org.jetbrains.amper.test.Dirs
 import java.nio.file.Path
@@ -36,7 +36,7 @@ internal fun copyTestProjectTo(testProjectName: String, testDataRoot: Path, test
 
 internal fun getTestProjectModel(testProjectRoot: Path): Model {
     val aom = with(NoopProblemReporter) {
-        val amperProjectContext = StandaloneAmperProjectContext.create(testProjectRoot, null)
+        val amperProjectContext = AmperProjectContext.create(rootDir = testProjectRoot, buildDir = null)
             ?: fail("Failed to create test project context")
         amperProjectContext.readProjectModel(pluginData = emptyList(), mavenPluginXmls = emptyList())
     }
