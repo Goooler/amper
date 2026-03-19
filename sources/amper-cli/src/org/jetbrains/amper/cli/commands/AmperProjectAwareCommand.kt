@@ -9,7 +9,6 @@ import org.jetbrains.amper.cli.CliContext
 import org.jetbrains.amper.cli.logging.LoggingInitializer
 import org.jetbrains.amper.cli.options.ProjectLayoutOptions
 import org.jetbrains.amper.cli.telemetry.TelemetryEnvironment
-import org.jetbrains.amper.diagnostics.DeadLockMonitor
 import org.jetbrains.amper.diagnostics.Profiler
 import org.jetbrains.amper.telemetry.spanBuilder
 import org.jetbrains.amper.telemetry.use
@@ -32,7 +31,6 @@ internal abstract class AmperProjectAwareCommand(name: String) : AmperSubcommand
         }
 
         spanBuilder("Setup file logging and monitoring").use {
-            DeadLockMonitor.install(cliContext.currentLogsRoot)
             LoggingInitializer.setupFileLogging(cliContext.currentLogsRoot)
         }
 
