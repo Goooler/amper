@@ -16,7 +16,6 @@ dependencies:
   - $libs.kotlinx.coroutines.core
   - $libs.opentelemetry.api
   - $libs.intellij.platform.util
-  - $libs.intellij.platform.core
   - $libs.slf4j.api
 
   #  JPS
