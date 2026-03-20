@@ -117,14 +117,16 @@ private fun printUserError(message: String) {
 private fun printInternalError(e: Exception) {
     if (AmperBuild.isSNAPSHOT) {
         // For dev-oriented builds the error needs to be accessible immediately.
-        LoggerFactory.getLogger("main").error("Internal error:", e)
+        // Not: we do not rely on console logging here, because the internal error could have occurred before it's set up
+        printRedToStderr("\nInternal error:")
+        e.printStackTrace()
     } else {
         // we avoid showing a scary stacktrace in the terminal, but we still provide it in the logs
         printRedToStderr("\nInternal error: $e\n\nPlease check the build logs for the full stacktrace, " +
                 "and if possible file a bug report at https://youtrack.jetbrains.com/newIssue?project=AMPER")
-        withoutConsoleLogging {
-            LoggerFactory.getLogger("main").error("Internal error:", e)
-        }
+    }
+    withoutConsoleLogging {
+        LoggerFactory.getLogger("main").error("Internal error:", e)
     }
 }
 
