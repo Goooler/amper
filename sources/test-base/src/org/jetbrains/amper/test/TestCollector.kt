@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+ * Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
  */
 
 package org.jetbrains.amper.test
@@ -17,13 +17,9 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import org.jetbrains.amper.test.spans.SpansTestCollector
 import org.slf4j.MDC
-import org.tinylog.core.LogEntry
-import org.tinylog.jul.JulTinylogBridge
 import java.util.*
 import java.util.function.Consumer
 import kotlin.time.Duration
-
-// TODO assert log errors
 
 class TestCollector(val backgroundScope: CoroutineScope) : SpansTestCollector {
     private val collectedSpans = mutableListOf<SpanData>()
@@ -31,12 +27,6 @@ class TestCollector(val backgroundScope: CoroutineScope) : SpansTestCollector {
     override val spans: List<SpanData>
         get() = synchronized(collectedSpans) { collectedSpans.toList() }
     override fun clearSpans() = synchronized(collectedSpans) { collectedSpans.clear() }
-
-    private val collectedLogEntries = mutableListOf<LogEntry>()
-    private fun addLogEntry(logEntry: LogEntry) = synchronized(collectedLogEntries) { collectedLogEntries.add(logEntry) }
-    val logEntries: List<LogEntry>
-        get() = synchronized(collectedLogEntries) { collectedLogEntries.toList() }
-    fun clearLogEntries() = synchronized(collectedLogEntries) { collectedLogEntries.clear() }
 
     val terminalRecorder = TerminalRecorder(ansiLevel = AnsiLevel.NONE)
     val terminal: Terminal = Terminal(terminalInterface = terminalRecorder)
@@ -57,31 +47,18 @@ class TestCollector(val backgroundScope: CoroutineScope) : SpansTestCollector {
                                 testCollector.addSpan(it)
                             }
                         }
-                        val logListener = object : TestInterceptorWriter.Listener {
-                            override fun onLogEntry(logEntry: LogEntry) {
-                                if (logEntry.context[MDC_KEY] == id) {
-                                    testCollector.addLogEntry(logEntry)
-                                }
-                            }
-                        }
 
                         OpenTelemetryCollector.addListener(listener)
-                        TestInterceptorWriter.addListener(logListener)
                         try {
                             block(testCollector)
                         } finally {
                             OpenTelemetryCollector.removeListener(listener)
-                            TestInterceptorWriter.removeListener(logListener)
 
                             println(testCollector.terminalRecorder.output())
                         }
                     }
                 }
             }
-        }
-
-        init {
-            JulTinylogBridge.activate()
         }
 
         private data class CurrentCollector(val id: String)
