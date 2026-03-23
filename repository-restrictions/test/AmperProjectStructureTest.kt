@@ -19,6 +19,7 @@ import org.jetbrains.amper.frontend.schema.ProductType
 import org.jetbrains.amper.frontend.schema.Repository.Companion.SpecialMavenLocalUrl
 import org.jetbrains.amper.problems.reporting.NoopProblemReporter
 import org.jetbrains.amper.test.Dirs
+import org.jetbrains.amper.test.runTestWithMdc
 import java.nio.file.FileVisitResult
 import java.nio.file.Path
 import kotlin.io.path.absolute
@@ -85,7 +86,7 @@ class AmperProjectStructureTest {
     }
 
     @Test
-    fun `modules used in IDEA should apply the used-in-idea template`() = runTest {
+    fun `modules used in IDEA should apply the used-in-idea template`() = runTestWithMdc {
         assertTransitiveTemplateUsage(
             consumerMoniker = "IDEA",
             templateFileName = "used-in-idea.module-template.yaml",
@@ -93,7 +94,7 @@ class AmperProjectStructureTest {
     }
 
     @Test
-    fun `modules used in the user's test JVM should apply the used-in-user-tests template`() = runTest {
+    fun `modules used in the user's test JVM should apply the used-in-user-tests template`() = runTestWithMdc {
         assertTransitiveTemplateUsage(
             consumerMoniker = "User test JVM",
             templateFileName = "used-in-user-tests.module-template.yaml",
@@ -101,7 +102,7 @@ class AmperProjectStructureTest {
     }
 
     @Test
-    fun `modules used in Gradle should apply the used-in-gradle template`() = runTest {
+    fun `modules used in Gradle should apply the used-in-gradle template`() = runTestWithMdc {
         assertTransitiveTemplateUsage(
             consumerMoniker = "Android Gradle delegated builds",
             templateFileName = "used-in-gradle.module-template.yaml",
@@ -109,7 +110,7 @@ class AmperProjectStructureTest {
     }
 
     @Test
-    fun `modules used in JIC process should apply the used-in-jic template`() = runTest {
+    fun `modules used in JIC process should apply the used-in-jic template`() = runTestWithMdc {
         assertTransitiveTemplateUsage(
             consumerMoniker = "JIC process",
             templateFileName = "used-in-jic.module-template.yaml",
@@ -117,7 +118,7 @@ class AmperProjectStructureTest {
     }
 
     @Test
-    fun `modules used in Kotlin Notebooks should apply the used-in-kotlin-notebook template`() = runTest {
+    fun `modules used in Kotlin Notebooks should apply the used-in-kotlin-notebook template`() = runTestWithMdc {
         assertTransitiveTemplateUsage(
             consumerMoniker = "Kotlin Notebooks",
             templateFileName = "used-in-kotlin-notebook.module-template.yaml",
@@ -165,7 +166,7 @@ class AmperProjectStructureTest {
     }
 
     @Test
-    fun `Amper-agnostic library modules don't use the word Amper`() = runTest {
+    fun `Amper-agnostic library modules don't use the word Amper`() = runTestWithMdc {
         val invalidLines = readAmperProjectModel()
             .modules
             .filter { it.isAmperAgnosticLibrary() }
@@ -199,7 +200,7 @@ class AmperProjectStructureTest {
         .map { (i, line) -> "${absolutePathString()}:$i: $line" }
 
     @Test
-    fun `Amper-agnostic library modules don't depend on Amper-aware modules`() = runTest {
+    fun `Amper-agnostic library modules don't depend on Amper-aware modules`() = runTestWithMdc {
         val invalidDeps = readAmperProjectModel()
             .modules
             .filter { it.isAmperAgnosticLibrary() }
@@ -216,7 +217,7 @@ class AmperProjectStructureTest {
     }
 
     @Test
-    fun `stdlib-extended library module doesn't depend on anything`() = runTest {
+    fun `stdlib-extended library module doesn't depend on anything`() = runTestWithMdc {
         val stdlibExtendedModule = readAmperProjectModel().modules.find { it.userReadableName == "stdlib-extended" }
             ?: error("Module 'stdlib-extended' not found, please update this test if it was renamed")
 
@@ -239,7 +240,7 @@ class AmperProjectStructureTest {
         coordinates.groupId == "org.jetbrains.kotlin" && coordinates.artifactId == "kotlin-stdlib"
 
     @Test
-    fun `DR module doesn't depend on Amper-aware modules in its production dependencies`() = runTest {
+    fun `DR module doesn't depend on Amper-aware modules in its production dependencies`() = runTestWithMdc {
         val drModuleName = "dependency-resolution"
         val drModule = readAmperProjectModel().modules.find { it.userReadableName == drModuleName }
             ?: error("Module '$drModuleName' not found, please update this test if it was renamed")

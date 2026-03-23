@@ -9,9 +9,8 @@ import io.opentelemetry.context.ContextKey
 import io.opentelemetry.extension.kotlin.asContextElement
 import io.opentelemetry.sdk.trace.data.SpanData
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.slf4j.MDCContext
-import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
+import org.jetbrains.amper.test.runTestWithMdc
 import org.jetbrains.amper.test.spans.SpansTestCollector
 import org.slf4j.MDC
 import java.util.*
@@ -30,11 +29,13 @@ class TestCollector(val backgroundScope: CoroutineScope) : SpansTestCollector {
         fun runTestWithCollector(timeout: Duration = Duration.INFINITE, block: suspend TestCollector.() -> Unit) {
             val id = UUID.randomUUID().toString()
 
-            runTest(timeout = timeout) {
-                val testCollector = TestCollector(backgroundScope = backgroundScope)
+            MDC.putCloseable(MDC_KEY, id).use {
+                // We need the MDCContext here, not only for the MDC_KEY right above, but also in general for JUnit
+                // extensions relying on MDC propagation.
+                runTestWithMdc(timeout = timeout) {
+                    val testCollector = TestCollector(backgroundScope = backgroundScope)
 
-                MDC.putCloseable(MDC_KEY, id).use {
-                    withContext(Context.current().with(KEY, CurrentCollector(id)).asContextElement() + MDCContext()) {
+                    withContext(Context.current().with(KEY, CurrentCollector(id)).asContextElement()) {
                         val listener = Consumer<SpanData> {
                             if (Context.current().get(KEY)?.id == id) {
                                 testCollector.addSpan(it)

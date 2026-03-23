@@ -1,11 +1,10 @@
 /*
- * Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+ * Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
  */
 
 package org.jetbrains.amper.frontend.dr.resolver
 
 import javassist.Modifier
-import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import org.jetbrains.amper.core.AmperUserCacheRoot
@@ -22,6 +21,7 @@ import org.jetbrains.amper.dependency.resolution.group
 import org.jetbrains.amper.dependency.resolution.isOrphan
 import org.jetbrains.amper.test.Dirs
 import org.jetbrains.amper.test.assertEqualsWithDiff
+import org.jetbrains.amper.test.runTestWithMdc
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInfo
 import org.reflections.Reflections
@@ -270,14 +270,15 @@ class GraphSerializationTest: BaseModuleDrTest() {
     }
 
     @Test
-    fun `all classes implementing Message are annotated with Serializable and properly registered`() = runTest {
+    fun `all classes implementing Message are annotated with Serializable and properly registered`() = runTestWithMdc {
         checkPolymorphicRequirements(Message::class)
     }
 
     @Test
-    fun `all classes implementing DependencyNodePlain are annotated with Serializable and properly registered`() = runTest {
-        checkPolymorphicRequirements(SerializableDependencyNode::class)
-    }
+    fun `all classes implementing DependencyNodePlain are annotated with Serializable and properly registered`() =
+        runTestWithMdc {
+            checkPolymorphicRequirements(SerializableDependencyNode::class)
+        }
 
     /**
      * Check that all classes implementing the given interface are annotated with [Serializable] and properly registered
@@ -320,7 +321,7 @@ class GraphSerializationTest: BaseModuleDrTest() {
      * this is why data classes are not suitable here.
      */
     @Test
-    fun `all classes implementing DependencyNodePlain are not data classes`() = runTest {
+    fun `all classes implementing DependencyNodePlain are not data classes`() = runTestWithMdc {
         val kClass = SerializableDependencyNode::class
 
         val reflections = Reflections("org.jetbrains.amper")
