@@ -26,10 +26,6 @@ dependencies:
 test-dependencies:
   - ../test-base
   - $libs.opentelemetry.sdkTesting
-  - $libs.tinylog.api
-  - $libs.tinylog.impl
-  - $libs.tinylog.slf4j
-  - $libs.tinylog.jul
   - $libs.system.stubs.jupiter
 
 settings:
