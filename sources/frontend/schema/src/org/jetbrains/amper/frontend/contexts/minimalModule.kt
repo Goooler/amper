@@ -159,11 +159,8 @@ internal class MinimalModuleHolder(
     }
 
     val pathInheritance by lazy {
-        // Order first by files and then by platforms.
-        val appliedTemplates = module.apply?.map { it.value }.orEmpty()
-        val filesOrder = appliedTemplates.mapNotNull { pathResolver.loadVirtualFileOrNull(it) } +
-                listOf(moduleFilePath)
-        PathInheritance(filesOrder)
+        val appliedTemplates = module.apply?.map { it.value }.orEmpty().toSet()
+        PathInheritance(templatePaths = appliedTemplates, modulePath = moduleFilePath)
     }
 
     val combinedInheritance by lazy {

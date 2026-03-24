@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+ * Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
  */
 
 package org.jetbrains.amper.frontend.helpers
@@ -12,13 +12,14 @@ import org.jetbrains.amper.frontend.api.asTrace
 import org.jetbrains.amper.frontend.contexts.Contexts
 import org.jetbrains.amper.frontend.contexts.PathCtx
 import org.jetbrains.amper.frontend.contexts.tryReadMinimalModule
-import org.jetbrains.amper.frontend.schema.Module
 import org.jetbrains.amper.frontend.tree.TreeNode
 import org.jetbrains.amper.frontend.tree.jsonDump
 import org.jetbrains.amper.frontend.tree.mergeTrees
 import org.jetbrains.amper.frontend.tree.reading.readTree
 import org.jetbrains.amper.frontend.tree.refineTree
 import org.jetbrains.amper.frontend.types.SchemaTypingContext
+import org.jetbrains.amper.problems.reporting.BuildProblem
+import org.jetbrains.amper.problems.reporting.CollectingProblemReporter
 import org.jetbrains.amper.problems.reporting.ProblemReporter
 import org.jetbrains.amper.test.golden.trimTrailingWhitespacesAndEmptyLines
 import java.nio.file.Path
@@ -74,6 +75,25 @@ fun FrontendTestCaseBase.testRefineModuleWithTemplates(
     treeBuilder = readAndRefineModuleWithTemplates(selectedContexts),
     dumpPathContexts = true,
 ).doTest()
+
+/**
+ * Reads the module with templates and returns reported problems for assertions.
+ */
+fun FrontendTestCaseBase.readModuleWithTemplatesAndGetProblems(
+    caseName: String,
+    selectedContexts: (VirtualFile) -> Contexts,
+    types: SchemaTypingContext = SchemaTypingContext(),
+): List<BuildProblem> {
+    val problemReporter = CollectingProblemReporter()
+    val pathResolver = TestFrontendPathResolver()
+    val inputPath = base.resolve("$caseName.yaml").absolute()
+    val inputVirtual = pathResolver.loadVirtualFile(inputPath)
+    context(problemReporter, pathResolver, types) {
+        val treeBuilder = readAndRefineModuleWithTemplates(selectedContexts)
+        treeBuilder(inputVirtual)
+    }
+    return problemReporter.problems
+}
 
 /**
  * Tests that the diagnostics created during module read are the same as in the file.

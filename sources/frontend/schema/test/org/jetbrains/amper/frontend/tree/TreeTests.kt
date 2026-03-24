@@ -11,6 +11,7 @@ import org.jetbrains.amper.frontend.helpers.DiagnosticsTreeTestRun
 import org.jetbrains.amper.frontend.helpers.FrontendTestCaseBase
 import org.jetbrains.amper.frontend.helpers.diagnoseModuleRead
 import org.jetbrains.amper.frontend.helpers.readAndRefineModule
+import org.jetbrains.amper.frontend.helpers.readModuleWithTemplatesAndGetProblems
 import org.jetbrains.amper.frontend.helpers.testModuleRead
 import org.jetbrains.amper.frontend.helpers.testRefineModule
 import org.jetbrains.amper.frontend.helpers.testRefineModuleWithTemplates
@@ -20,6 +21,8 @@ import org.jetbrains.amper.plugins.schema.model.SourceLocation
 import org.junit.jupiter.api.Test
 import kotlin.io.path.Path
 import kotlin.io.path.div
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class TreeTests : FrontendTestCaseBase(Path(".") / "testResources" / "valueTree") {
 
@@ -89,6 +92,21 @@ class TreeTests : FrontendTestCaseBase(Path(".") / "testResources" / "valueTree"
         types = SchemaTypingContext(),
         treeBuilder = readAndRefineModule(platformCtxs("jvm")),
     ).doTest()
+
+    @Test
+    fun `conflicting template values are reported`() {
+        // TODO: We do not report template issues in the module that applies them so we have to manually check
+        //  problems here.
+        val problems = readModuleWithTemplatesAndGetProblems(
+            caseName = "template-conflicts",
+            selectedContexts = { platformCtxs("jvm") + PathCtx(it, null) },
+        )
+        val conflicts = problems.filterIsInstance<ConflictingProperties>()
+        assertEquals(1, conflicts.size, "Expected exactly one conflict, got: $problems")
+        val conflict = conflicts.single()
+        assertEquals(2, conflict.keyValues.size, "Expected exactly two conflicting properties, got: $conflict")
+        assertTrue(conflict.keyValues.all { it.key == "languageVersion" })
+    }
 
     @Test
     fun `context conflicts are not reported if resolved in a more specific context`() = DiagnosticsTreeTestRun(
