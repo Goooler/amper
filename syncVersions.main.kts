@@ -41,7 +41,7 @@ val kotlinVersion = "2.3.20" // /!\ Remember to update the KotlinVersion enum wi
 val kotlinxRpcVersion = "0.10.2"
 val kotlinxSerializationVersion = "1.10.0"
 val kspVersion = "2.3.6"
-val ktorVersion = "3.4.0"
+val ktorVersion = "3.4.1"
 val lombokVersion = "1.18.38"
 val springBootVersion = "4.0.2"
 
