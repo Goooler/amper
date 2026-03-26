@@ -14,29 +14,74 @@ private val schemaModuleDir = amperRootDir / "sources/frontend/schema"
 private val cliTestsModuleDir = amperRootDir / "sources/test-integration/amper-cli-test"
 private val testResourcesDir = schemaModuleDir / "testResources"
 private val testResourcePathRegex = Regex("(${Regex.escape(testResourcesDir.absolutePathString())})[^),\"'\n\r]*")
+private val MAX_ATTEMPTS = 10
 
 fun updateGoldFiles() {
-    // regenerate .tmp files from broken tests
-    runSchemaTests()
+    updateDrGoldFiles()
+    updateSchemaGoldFiles()
+    updateCliGoldFiles()
+}
 
-    (drModuleDir.walk() + schemaModuleDir.walk() + cliTestsModuleDir.walk())
+fun updateDrGoldFiles() {
+    updateGoldFilesUntilSuccess(
+        sectionName = "dr module",
+        goldFilesRoot = drModuleDir,
+    ) {
+        runAmperCli("test", "-m", "dr")
+    }
+}
+
+fun updateSchemaGoldFiles() {
+    updateGoldFilesUntilSuccess(
+        sectionName = "schema module",
+        goldFilesRoot = schemaModuleDir,
+    ) {
+        runAmperCli("test", "-m", "schema")
+    }
+}
+
+fun updateCliGoldFiles() {
+    updateGoldFilesUntilSuccess(
+        sectionName = "amper-cli-test module",
+        goldFilesRoot = cliTestsModuleDir,
+    ) {
+        runAmperCli("test", "-m", "amper-cli-test", "--include-classes=*.ShowSettingsCommandTest", "--include-classes=*.ShowDependenciesCommandTest")
+    }
+}
+
+fun updateGoldFilesUntilSuccess(sectionName: String, goldFilesRoot: Path, runTests: () -> Int) {
+    println("=== Updating $sectionName gold files ===")
+    repeat(MAX_ATTEMPTS) { attemptIndex ->
+        val attemptNumber = attemptIndex + 1
+        println("Attempt $attemptNumber/$MAX_ATTEMPTS: running tests...")
+        val exitCode = runTests()
+        if (exitCode == 0) {
+            println("Tests passed for $sectionName.")
+            println()
+            return
+        }
+
+        val updatedFilesCount = updateTmpFilesUnder(goldFilesRoot)
+        if (updatedFilesCount == 0) {
+            println("Tests failed for $sectionName, but no .tmp files were found.")
+        } else {
+            println("Updated $updatedFilesCount gold file(s) for $sectionName.")
+        }
+        println()
+    }
+
+    error("Failed to update $sectionName gold files after $MAX_ATTEMPTS attempts.")
+}
+
+fun updateTmpFilesUnder(root: Path): Int {
+    var updatedFilesCount = 0
+    root.walk()
         .filter { it.name.endsWith(".tmp") }
         .forEach { tmpResultFile ->
             updateGoldFileFor(tmpResultFile)
+            updatedFilesCount++
         }
-}
-
-fun runSchemaTests() {
-    println("Running schema and dr tests to generate .tmp result files...")
-    val exitCode1 = runAmperCli("test", "-m", "schema", "-m", "dr")
-    val exitCode2 = runAmperCli("test", "-m", "amper-cli-test", "--include-classes=*.ShowSettingsCommandTest", "--include-classes=*.ShowDependenciesCommandTest")
-    println()
-    if (exitCode1 == 0 && exitCode2 == 0) {
-        println("Tests succeeded, which means no new .tmp files were generated.")
-    } else {
-        println("Tests failed, but it's ok if it's because of the gold files.")
-    }
-    println()
+    return updatedFilesCount
 }
 
 @Suppress("PROCESS_BUILDER_START_LEAK")
