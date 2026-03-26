@@ -49,7 +49,25 @@ settings:
     The All-open plugin is invaluable for Spring projects, because Spring needs to create proxy classes that extend
     the original classes. This is why using `springBoot: enabled` automatically enables the All-open plugin with the
     Spring preset.
- 
+
+### Compose
+
+The Compose compiler plugin is covered in the mode general
+[Compose Multiplatform](../builtin-tech/compose-multiplatform.md) section.
+
+### Kotlinx Serialization
+
+The Kotlinx Serialization compiler plugin is covered in the more general
+[Kotlinx Serialization](../builtin-tech/kotlinx-serialization.md) section.
+
+### Kotlinx RPC
+
+The Kotlinx RPC compiler plugin is covered in the more general
+[Kotlinx RPC](../builtin-tech/kotlinx-rpc.md) section.
+
+### Lombok
+
+The Lombok compiler plugin is covered in the more general [Lombok](../builtin-tech/lombok.md) section.
 
 ### No-arg
 
@@ -78,6 +96,10 @@ settings:
       presets: 
         - jpa
 ```
+
+### Parcelize
+
+The Parcelize compiler plugin is covered in the [Android](../product-types/android-app.md) section.
 
 ### Power Assert
 
@@ -113,29 +135,6 @@ settings:
       enabled: true
       functions: [ kotlin.test.assertTrue, kotlin.test.assertEquals, kotlin.test.assertNull ]
 ```
-
-### Compose
-
-The Compose compiler plugin is covered in the mode general
-[Compose Multiplatform](../builtin-tech/compose-multiplatform.md) section.
-
-### Kotlinx Serialization
-
-The Kotlinx Serialization compiler plugin is covered in the more general 
-[Kotlinx Serialization](../builtin-tech/kotlinx-serialization.md) section.
-
-### Kotlinx RPC
-
-The Kotlinx RPC compiler plugin is covered in the more general
-[Kotlinx RPC](../builtin-tech/kotlinx-rpc.md) section.
-
-### Parcelize
-
-The Parcelize compiler plugin is covered in the [Android](../product-types/android-app.md) section.
-
-### Lombok
-
-The Lombok compiler plugin is covered in the more general [Lombok](../builtin-tech/lombok.md) section.
 
 ## Third-party compiler plugins
 
