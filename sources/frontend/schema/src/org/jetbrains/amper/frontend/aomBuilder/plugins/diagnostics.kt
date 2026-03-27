@@ -5,6 +5,7 @@
 package org.jetbrains.amper.frontend.aomBuilder.plugins
 
 import com.intellij.psi.PsiElement
+import org.jetbrains.amper.core.UsedInIdePlugin
 import org.jetbrains.amper.frontend.SchemaBundle
 import org.jetbrains.amper.frontend.messages.PsiBuildProblem
 import org.jetbrains.amper.problems.reporting.BuildProblemType
@@ -15,6 +16,7 @@ import java.nio.file.Path
 
 class PluginYamlMissing(
     override val element: PsiElement,
+    @field:UsedInIdePlugin
     val expectedPluginYamlPath: Path,
 ) : PsiBuildProblem(
     level = Level.Warning,
