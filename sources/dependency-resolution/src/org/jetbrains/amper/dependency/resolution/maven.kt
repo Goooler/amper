@@ -371,12 +371,17 @@ interface MavenDependencyConstraintNode : DependencyNode {
         }
 }
 
-@Serializable
+@Serializable(with = MavenDependencyConstraintReference.Serializer::class)
 class MavenDependencyConstraintReference(
-    val index: Int
-) {
+    override val index: MavenDependencyConstraintIndex
+): GraphEntryReference {
     fun toNodePlain(graphContext: DependencyGraphContext): MavenDependencyConstraint =
         graphContext.getMavenDependencyConstraint(index)
+
+    internal companion object Serializer : ReferenceSerializer<MavenDependencyConstraintReference>() {
+        override fun Int.toReference() = MavenDependencyConstraintReference(this)
+        override fun getReferenceClass() = MavenDependencyConstraintReference::class
+    }
 }
 
 
@@ -611,14 +616,18 @@ class MavenDependencyPlain internal constructor (
     override fun toString() = "$group:$module:${version.orUnspecified()}"
 }
 
-@Serializable
+@Serializable(with = MavenDependencyReference.Serializer::class)
 class MavenDependencyReference(
-    private val index: MavenDependencyIndex
-) {
+    override val index: MavenDependencyIndex
+): GraphEntryReference {
     fun toNodePlain(graphContext: DependencyGraphContext): MavenDependency =
         graphContext.getMavenDependency(index)
-}
 
+    internal companion object Serializer : ReferenceSerializer<MavenDependencyReference>() {
+        override fun Int.toReference() = MavenDependencyReference(this)
+        override fun getReferenceClass() = MavenDependencyReference::class
+    }
+}
 /**
  * An actual Maven dependency that can be resolved, that is, populated with children according to the requested
  * [ResolutionScope] and platform.

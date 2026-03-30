@@ -10,6 +10,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.buildClassSerialDescriptor
 import kotlinx.serialization.encoding.CompositeDecoder
@@ -349,15 +351,39 @@ class DependencyGraph(
     }
 }
 
-// todo (AB) : Serialize to Int instead of object to decrease size of serialized graph
-@Serializable
+@Serializable(with = DependencyNodeReference.Serializer::class)
 data class DependencyNodeReference(
-    internal val index: DependencyNodeIndex
-) {
+    override val index: DependencyNodeIndex
+): GraphEntryReference {
     fun toNodePlain(graphContext: DependencyGraphContext): SerializableDependencyNode =
         graphContext.getDependencyNode(index)
+
+    internal companion object Serializer : ReferenceSerializer<DependencyNodeReference>() {
+        override fun Int.toReference() = DependencyNodeReference(this)
+        override fun getReferenceClass() = DependencyNodeReference::class
+    }
 }
 
+internal interface GraphEntryReference {
+    val index: Int
+}
+
+internal abstract class ReferenceSerializer<R: GraphEntryReference> : KSerializer<R> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor(getReferenceClass().java.simpleName, PrimitiveKind.INT)
+
+    override fun serialize(encoder: Encoder, value: R) {
+        encoder.encodeInt(value.index)
+    }
+
+    override fun deserialize(decoder: Decoder): R {
+        val index = decoder.decodeInt()
+        return index.toReference()
+    }
+
+    abstract fun Int.toReference(): R
+    abstract fun getReferenceClass(): KClass<R>
+}
 
 @Serializable(with = DependencyGraphContextSerializer::class)
 class DependencyGraphContext(
