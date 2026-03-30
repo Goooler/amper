@@ -6,6 +6,7 @@ package org.jetbrains.amper.frontend.dr.resolver
 
 import javassist.Modifier
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.jetbrains.amper.core.AmperUserCacheRoot
 import org.jetbrains.amper.dependency.resolution.DependencyGraph
@@ -159,6 +160,10 @@ class GraphSerializationTest: BaseModuleDrTest() {
         root.assertGraphStructure(testInfo, GraphType.ORIGINAL)
         graph.assertGraphStructure(testInfo)
 
+        val encodedGraph = json.encodeToString(graph)
+        val decodedGraph = json.decodeFromString(DependencyGraph.serializer(), encodedGraph)
+        decodedGraph.assertGraphStructure(testInfo)
+
 //        graph.assertNodePlainIndexes(testInfo)
     }
 
@@ -308,7 +313,8 @@ class GraphSerializationTest: BaseModuleDrTest() {
         }
 
         val notRegistered = allNonAbstractChildrenKotlin.filter {
-            json.serializersModule.getPolymorphic(kClass, it.jvmName) == null
+            val getSerializedClassName = it.annotations.filterIsInstance<SerialName>().singleOrNull()?.value ?: it.jvmName
+            json.serializersModule.getPolymorphic(kClass, getSerializedClassName) == null
         }
         assertTrue("Serializable classes implementing ${kClass.simpleName}, should be registered in a polymorphic serializer module: $notRegistered") {
             notRegistered.isEmpty()

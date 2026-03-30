@@ -10,6 +10,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import org.jetbrains.amper.dependency.resolution.attributes.Attribute
@@ -116,6 +117,7 @@ val MavenDependencyNode.module
     get() = dependency.module
 
 @Serializable
+@SerialName("MDN")
 internal class SerializableMavenDependencyNode internal constructor(
     override val originalVersion: String?,
     override val versionFromBom: String? = null,
@@ -386,6 +388,7 @@ class MavenDependencyConstraintReference(
 
 
 @Serializable
+@SerialName("MDCN")
 internal class SerializableMavenDependencyConstraintNode internal constructor(
     override val group: String,
     override val module: String,
@@ -529,6 +532,7 @@ data class MavenDependencyConstraintImpl(
 ) : MavenDependencyConstraint
 
 @Serializable
+@SerialName("MDC")
 data class MavenDependencyConstraintPlain(
     override val group: String,
     override val module: String,
@@ -593,6 +597,7 @@ val MavenDependency.version
     get() = coordinates.version
 
 @Serializable
+@SerialName("MD")
 class MavenDependencyPlain internal constructor (
     override val coordinates: MavenCoordinates,
     override val packaging: String? = null,

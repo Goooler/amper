@@ -4,6 +4,7 @@
 package org.jetbrains.amper.frontend.dr.resolver
 
 import io.opentelemetry.api.OpenTelemetry
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import org.jetbrains.amper.dependency.resolution.CacheEntryKey
@@ -148,6 +149,7 @@ class ModuleDependencyNodeWithModuleAndContext(
 }
 
 @Serializable
+@SerialName("ModuleDN")
 internal class SerializableModuleDependencyNodeWithModule internal constructor(
     override val moduleName: String,
     override val graphEntryName: String,
@@ -204,6 +206,7 @@ private fun traceInfo(notation: Notation): String {
 }
 
 @Serializable
+@SerialName("DirectDN")
 internal class SerializableDirectFragmentDependencyNodeHolder internal constructor(
     override val fragmentName: String,
     override val graphEntryName: String,
