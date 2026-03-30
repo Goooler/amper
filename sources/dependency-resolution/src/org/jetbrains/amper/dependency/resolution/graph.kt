@@ -389,7 +389,8 @@ internal abstract class ReferenceSerializer<R: GraphEntryReference> : KSerialize
 class DependencyGraphContext(
     val allDependencyNodes: MutableMap<SerializableDependencyNode, DependencyNodeIndex> = mutableMapOf(),
     val allMavenDependencies: MutableMap<MavenDependencyPlain, MavenDependencyIndex> = mutableMapOf(),
-    val allMavenDependencyConstraints: MutableMap<MavenDependencyConstraintPlain, MavenDependencyConstraintIndex> = mutableMapOf()
+    val allMavenDependencyConstraints: MutableMap<MavenDependencyConstraintPlain, MavenDependencyConstraintIndex> = mutableMapOf(),
+    val allResolutionConfigs: MutableMap<ResolutionConfigPlain, ResolutionConfigIndex> = mutableMapOf()
 ) {
 
     @Transient
@@ -398,6 +399,8 @@ class DependencyGraphContext(
     val allMavenDependencyReferences: MutableMap<MavenDependency, MavenDependencyReference> = mutableMapOf()
     @Transient
     val allMavenDependencyConstraintReferences: MutableMap<MavenDependencyConstraint, MavenDependencyConstraintReference> = mutableMapOf()
+    @Transient
+    val allResolutionConfigReferences: MutableMap<ResolutionConfig, ResolutionConfigReference> = mutableMapOf()
 
     /**
      * The transient fields below provide instant access to cached values by index.
@@ -428,6 +431,16 @@ class DependencyGraphContext(
         get() {
             if (field.size != allMavenDependencyConstraints.size) {
                 field = allMavenDependencyConstraints.keys.toList()
+            }
+            return field
+        }
+        private set
+
+    @Transient
+    var allResolutionConfigsList: List<ResolutionConfigPlain> = emptyList()
+        get() {
+            if (field.size != allResolutionConfigs.size) {
+                field = allResolutionConfigs.keys.toList()
             }
             return field
         }
@@ -485,6 +498,19 @@ class DependencyGraphContext(
         return reference
     }
 
+    fun registerResolutionConfigPlain(resolutionConfig: ResolutionConfig, nodePlain: ResolutionConfigPlain): ResolutionConfigReference {
+        if (allResolutionConfigReferences[resolutionConfig] != null) error("Plain resolution config $resolutionConfig is already registered")
+        if (allResolutionConfigs[nodePlain] != null) error("Reference for the resolution config $resolutionConfig is already registered")
+
+        val refIndex = allResolutionConfigReferences.size
+        allResolutionConfigs[nodePlain] = refIndex
+
+        val reference = ResolutionConfigReference(refIndex)
+        allResolutionConfigReferences[nodePlain] = reference
+
+        return reference
+    }
+
     inline fun <reified T: DependencyNode> getDependencyNodeReference(node: T): DependencyNodeReference? {
         return allDependencyNodeReferences[node]
     }
@@ -503,6 +529,10 @@ class DependencyGraphContext(
 
     fun getMavenDependencyConstraintReference(constraint: MavenDependencyConstraint): MavenDependencyConstraintReference? {
         return allMavenDependencyConstraintReferences[constraint]
+    }
+
+    fun getResolutionConfigReference(resolutionConfig: ResolutionConfig): ResolutionConfigReference? {
+        return allResolutionConfigReferences[resolutionConfig]
     }
 
     inline fun <reified T: SerializableDependencyNode> getDependencyNode(index: DependencyNodeIndex): T {
@@ -524,6 +554,10 @@ class DependencyGraphContext(
         return mavenDependenciesConstraintsList.getOrNull(index) ?: error("MavenDependencyConstraint with index $index is absent in the graph")
     }
 
+    fun getResolutionConfig(index: ResolutionConfigIndex): ResolutionConfigPlain {
+        return allResolutionConfigsList.getOrNull(index) ?: error("ResolutionConfig with index $index is absent in the graph")
+    }
+
     companion object {
         val currentGraphContext = ThreadLocal<DependencyGraphContext?>()
     }
@@ -536,12 +570,15 @@ class DependencyGraphContextSerializer: KSerializer<DependencyGraphContext> {
         MapSerializer(MavenDependencyPlain.serializer(), Int.serializer())
     private val allMavenDependencyConstraintsSerializer: KSerializer<Map<MavenDependencyConstraintPlain, DependencyNodeIndex>> =
         MapSerializer(MavenDependencyConstraintPlain.serializer(), Int.serializer())
+    private val allResolutionConfigsSerializer: KSerializer<Map<ResolutionConfigPlain, ResolutionConfigIndex>> =
+        MapSerializer(ResolutionConfigPlain.serializer(), Int.serializer())
 
     override val descriptor: SerialDescriptor = buildClassSerialDescriptor(
         "org.jetbrains.amper.dependency.resolution.DependencyGraphContextSerializer") {
         element("allDependencyNodes", allDependencyNodesSerializer.descriptor)
         element("allMavenDependencies", allMavenDependenciesSerializer.descriptor)
         element("allMavenDependencyConstraints", allMavenDependencyConstraintsSerializer.descriptor)
+        element("allResolutionConfigs", allResolutionConfigsSerializer.descriptor)
     }
 
     override fun serialize(encoder: Encoder, value: DependencyGraphContext) {
@@ -549,6 +586,7 @@ class DependencyGraphContextSerializer: KSerializer<DependencyGraphContext> {
             encodeSerializableElement(descriptor, 0, allDependencyNodesSerializer, value.allDependencyNodes)
             encodeSerializableElement(descriptor, 1, allMavenDependenciesSerializer, value.allMavenDependencies)
             encodeSerializableElement(descriptor, 2, allMavenDependencyConstraintsSerializer, value.allMavenDependencyConstraints)
+            encodeSerializableElement(descriptor, 3, allResolutionConfigsSerializer, value.allResolutionConfigs)
         }
     }
 
@@ -559,6 +597,7 @@ class DependencyGraphContextSerializer: KSerializer<DependencyGraphContext> {
             var allDependencyNodes: MutableMap<SerializableDependencyNode, DependencyNodeIndex>? = null
             var allMavenDependencies: MutableMap<MavenDependencyPlain, MavenDependencyIndex>? = null
             var allMavenDependencyConstraints: MutableMap<MavenDependencyConstraintPlain, MavenDependencyConstraintIndex>? = null
+            var allResolutionConfigs: MutableMap<ResolutionConfigPlain, ResolutionConfigIndex>? = null
 
             try {
                 DependencyGraphContext.currentGraphContext.set(graphContext)
@@ -577,6 +616,10 @@ class DependencyGraphContextSerializer: KSerializer<DependencyGraphContext> {
                             allMavenDependencyConstraints =
                                 decodeSerializableElement(descriptor, 2, allMavenDependencyConstraintsSerializer).toMutableMap()
                         }
+                        3 -> {
+                            allResolutionConfigs =
+                                decodeSerializableElement(descriptor, 2, allResolutionConfigsSerializer).toMutableMap()
+                        }
                         CompositeDecoder.DECODE_DONE -> break
                         else -> error("Unexpected index: $index")
                     }
@@ -588,6 +631,7 @@ class DependencyGraphContextSerializer: KSerializer<DependencyGraphContext> {
             graphContext.allDependencyNodes.putAll(allDependencyNodes!!)
             graphContext.allMavenDependencies.putAll(allMavenDependencies!!)
             graphContext.allMavenDependencyConstraints.putAll(allMavenDependencyConstraints!!)
+            graphContext.allResolutionConfigs.putAll(allResolutionConfigs!!)
 
             graphContext
         }
@@ -597,6 +641,7 @@ class DependencyGraphContextSerializer: KSerializer<DependencyGraphContext> {
 typealias DependencyNodeIndex = Int
 typealias MavenDependencyIndex = Int
 typealias MavenDependencyConstraintIndex = Int
+typealias ResolutionConfigIndex = Int
 
 fun currentGraphContext(): DependencyGraphContext = DependencyGraphContext.currentGraphContext.get()
     ?: error("Instance of DependencyGraphContext should be either explicitly passed to the constructor or presented in the dedicated ThreadLocal")

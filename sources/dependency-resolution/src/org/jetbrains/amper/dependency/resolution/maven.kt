@@ -574,12 +574,9 @@ interface MavenDependency {
                     messages,
                     files(true).map { DependencyFilePlain(it) },
                     pomPath?.absolutePathString(),
-                    // todo (AB) : ResolutionConfigPlain could be deduplicated with reference
-                    ResolutionConfigPlain(
-                        resolutionConfig.scope, resolutionConfig.platforms,
-                        // todo (AB) : List<Repositories> could be deduplicated
-                        resolutionConfig.repositories),
-                    state
+                    resolutionConfig.toSerializableReference(graphContext),
+                    state,
+                    graphContext
                 )
                 graphContext.registerMavenDependencyPlain(this, mavenDependencyPlain)
 
@@ -602,12 +599,16 @@ class MavenDependencyPlain internal constructor (
     override val messages: List<Message>,
     val files: List<DependencyFilePlain>,
     private val pomPathAsString: String? = null,
-    override val resolutionConfig: ResolutionConfigPlain,
-    override val state: ResolutionState = ResolutionState.RESOLVED
+    private val resolutionConfigReference: ResolutionConfigReference,
+    override val state: ResolutionState = ResolutionState.RESOLVED,
+    @Transient
+    private val graphContext: DependencyGraphContext = currentGraphContext()
 ) : MavenDependency {
 
     @Transient
     override val pomPath: Path? = pomPathAsString?.let { Path(it) }
+
+    override val resolutionConfig by lazy { resolutionConfigReference.toNodePlain(graphContext) }
 
     override fun files(withSources: Boolean): List<DependencyFile> {
         return if (withSources) files else files.filterNot { it.isDocumentation }
@@ -628,6 +629,7 @@ class MavenDependencyReference(
         override fun getReferenceClass() = MavenDependencyReference::class
     }
 }
+
 /**
  * An actual Maven dependency that can be resolved, that is, populated with children according to the requested
  * [ResolutionScope] and platform.

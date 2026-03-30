@@ -235,6 +235,25 @@ interface ResolutionConfig {
     val scope: ResolutionScope
     val platforms: Set<ResolutionPlatform>
     val repositories: List<Repository>
+
+    fun toSerializableReference(graphContext: DependencyGraphContext): ResolutionConfigReference {
+        val resolutionConfigPlain = ResolutionConfigPlain(scope, platforms, repositories)
+        return graphContext.getResolutionConfigReference(resolutionConfigPlain)
+            ?: graphContext.registerResolutionConfigPlain(resolutionConfigPlain, resolutionConfigPlain)
+    }
+}
+
+@Serializable(with = ResolutionConfigReference.Serializer::class)
+class ResolutionConfigReference(
+    override val index: ResolutionConfigIndex
+): GraphEntryReference {
+    fun toNodePlain(graphContext: DependencyGraphContext): ResolutionConfig =
+        graphContext.getResolutionConfig(index)
+
+    internal companion object Serializer : ReferenceSerializer<ResolutionConfigReference>() {
+        override fun Int.toReference() = ResolutionConfigReference(this)
+        override fun getReferenceClass() = ResolutionConfigReference::class
+    }
 }
 
 data class MavenGroupAndArtifact(
