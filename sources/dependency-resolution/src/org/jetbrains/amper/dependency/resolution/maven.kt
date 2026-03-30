@@ -126,12 +126,12 @@ internal class SerializableMavenDependencyNode internal constructor(
     private val dependencyRef: MavenDependencyReference,
     override val childrenRefs: MutableList<DependencyNodeReference> = mutableListOf(),
     internal val overriddenByRefs: MutableSet<DependencyNodeReference> = mutableSetOf(),
-    private val coordinatesForPublishing: MavenCoordinates,
+    private val coordinatesForPublishing: MavenCoordinates? = null,
     private val parentKmpLibraryCoordinates: MavenCoordinates? = null,
     @Transient
     private val graphContext: DependencyGraphContext = currentGraphContext()
 ) : MavenDependencyNode, SerializableDependencyNodeBase(graphContext) {
-    override fun getMavenCoordinatesForPublishing(): MavenCoordinates = coordinatesForPublishing
+    override fun getMavenCoordinatesForPublishing(): MavenCoordinates = coordinatesForPublishing ?: getOriginalMavenCoordinates()
     override fun getParentKmpLibraryCoordinates(): MavenCoordinates? = parentKmpLibraryCoordinates
 
     override val overriddenBy: Set<DependencyNode> by lazy { overriddenByRefs.map { it.toNodePlain(graphContext) }.toSet() }
