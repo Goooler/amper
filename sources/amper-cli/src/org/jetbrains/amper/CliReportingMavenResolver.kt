@@ -28,13 +28,14 @@ class CliReportingMavenResolver(
         val span = Span.current()
         
         for (buildProblem in buildProblems) {
+            val message = renderMessage(buildProblem)
             when (buildProblem.level) {
-                Level.WeakWarning -> logger.info(buildProblem.message)
-                Level.Warning -> logger.warn(buildProblem.message)
+                Level.WeakWarning -> logger.info(message)
+                Level.Warning -> logger.warn(message)
                 Level.Error -> {
-                    span.recordException(MavenResolverException(buildProblem.message))
+                    span.recordException(MavenResolverException(message))
                     withoutConsoleLogging {
-                        logger.error(buildProblem.message)
+                        logger.error(message)
                     }
                 }
             }
