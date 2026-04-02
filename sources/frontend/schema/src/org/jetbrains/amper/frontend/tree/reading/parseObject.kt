@@ -75,7 +75,7 @@ private fun parseObjectWithFromKeyProperty(
         }
         is YamlValue.Scalar -> {
             val trace = value.asTrace()
-            mappingNode(
+            objectNode(
                 children = listOf(
                     KeyValue(
                         keyTrace = value.asTrace(),
@@ -84,7 +84,8 @@ private fun parseObjectWithFromKeyProperty(
                         propertyDeclaration = valueAsKeyProperty,
                     )
                 ),
-                origin = value, type = type,
+                origin = value,
+                declaration = type.declaration,
             )
         }
         else -> {
@@ -142,12 +143,12 @@ private fun parseObjectFromMap(value: YamlValue.Mapping, type: SchemaType.Object
         )
     }
 
-    return mappingNode(
+    return objectNode(
         children = value.keyValues.mapNotNull { keyValue ->
             parseObjectProperty(keyValue)
         },
         origin = value,
-        type = type,
+        declaration = type.declaration,
     )
 }
 
@@ -161,7 +162,7 @@ private fun parseObjectFromScalarShorthand(
         val secondary = type.declaration.getSecondaryShorthand()
 
         if (boolean != null && scalar.textValue == boolean.name) {
-            return boolean to booleanNode(scalar, SchemaType.BooleanType, true)
+            return boolean to booleanNode(scalar, true)
         }
         return when (val type = secondary?.type) {
             is SchemaType.EnumType -> secondary to parseEnum(
@@ -182,7 +183,7 @@ private fun parseObjectFromScalarShorthand(
     val value = result ?: return null
 
     val trace = scalar.asTrace()
-    return mappingNode(
+    return objectNode(
         children = listOf(
             KeyValue(
                 keyTrace = trace,
@@ -191,7 +192,7 @@ private fun parseObjectFromScalarShorthand(
                 propertyDeclaration = property,
             )
         ),
-        type = type,
+        declaration = type.declaration,
         origin = scalar,
     )
 }
@@ -207,7 +208,7 @@ private fun parseObjectFromListShorthand(
         val propertyType = listShorthandProperty.type as SchemaType.ListType
         // At this point we are committed to read this as a shorthand, so
         val trace = sequence.asTrace()
-        return mappingNode(
+        return objectNode(
             children = listOfNotNull(
                 KeyValue(
                     keyTrace = trace,
@@ -216,7 +217,8 @@ private fun parseObjectFromListShorthand(
                     propertyDeclaration = listShorthandProperty,
                 )
             ),
-            type = type, origin = sequence,
+            declaration = type.declaration,
+            origin = sequence,
         )
     }
     // shorthand is unsupported

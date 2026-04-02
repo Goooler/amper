@@ -42,6 +42,7 @@ enum class TreeDiagnosticId : DiagnosticId {
     UnexpectedValue,
     UnknownEnumValue,
     UnresolvedReference,
+    ReferenceMemberAccessOnNullable,
 
     // Domain-specific
     CoordinatesInGradleFormat,

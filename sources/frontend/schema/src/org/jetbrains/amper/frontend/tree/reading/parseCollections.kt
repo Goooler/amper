@@ -24,7 +24,6 @@ internal fun parseList(value: YamlValue.Sequence, type: SchemaType.ListType): Li
         children = value.items.mapNotNull { value ->
             parseNode(value, type.elementType)
         },
-        type = type,
         trace = value.asTrace(),
         contexts = contexts,
     )
@@ -35,10 +34,9 @@ internal fun parseMap(value: YamlValue.Mapping, type: SchemaType.MapType): Mappi
     val children = value.keyValues.mapNotNull { keyValue: YamlKeyValue ->
         parseKeyValueForMap(keyValue, type)
     }
-    return mappingNode(
+    return mapNode(
         children = children,
         origin = value,
-        type = type,
     )
 }
 
@@ -69,10 +67,9 @@ internal fun parseMapFromSequence(value: YamlValue.Sequence, type: SchemaType.Ma
         parseSingleKeyValue(it)
     }
 
-    return mappingNode(
+    return mapNode(
         origin = value,
         children = children,
-        type = type,
     )
 }
 
@@ -128,5 +125,5 @@ internal fun parseNodeFromKeyValue(
     explicitContexts: Contexts,
 ): TreeNode {
     return parseNode(keyValue.value, type, explicitContexts)
-        ?: ErrorNode(keyValue.asTrace())
+        ?: ErrorNode(type, keyValue.asTrace())
 }

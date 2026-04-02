@@ -22,17 +22,17 @@ internal fun parseScalar(scalar: YamlValue.Scalar, type: SchemaType.ScalarType):
             reportParsing(scalar, TreeDiagnosticId.UnexpectedValue, "validation.expected", type.render(), type = BuildProblemType.TypeMismatch)
             null
         }
-        else -> booleanNode(scalar, type, boolean)
+        else -> booleanNode(scalar, boolean)
     }
     is SchemaType.IntType -> when(val int = scalar.textValue.toIntOrNull()) {
         null -> {
             reportParsing(scalar, TreeDiagnosticId.UnexpectedValue, "validation.expected", type.render(), type = BuildProblemType.TypeMismatch)
             null
         }
-        else -> intNode(scalar, type, int)
+        else -> intNode(scalar, int)
     }
     is SchemaType.StringType -> {
-        stringNode(scalar, type, scalar.textValue).takeIf {
+        stringNode(scalar, type.semantics, scalar.textValue).takeIf {
             when (type.semantics) {
                 SchemaType.StringType.Semantics.JvmMainClass,
                 SchemaType.StringType.Semantics.PluginSettingsClass,
@@ -61,7 +61,7 @@ private fun parsePath(scalar: YamlValue.Scalar, type: SchemaType.PathType): Scal
     }
     path = if (path.isAbsolute) path else config.basePath.resolve(path)
     path = path.normalize()
-    return pathNode(scalar, type, path)
+    return pathNode(scalar, path)
 }
 
 context(_: Contexts, _: ProblemReporter)
@@ -84,5 +84,5 @@ internal fun parseEnum(
         )
         return null
     }
-    return enumNode(scalar, type, entry.name)
+    return enumNode(scalar, type.declaration, entry.name)
 }

@@ -14,6 +14,8 @@ import org.jetbrains.amper.frontend.contexts.WithContexts
 import org.jetbrains.amper.frontend.contexts.asCompareResult
 import org.jetbrains.amper.frontend.contexts.defaultContextsInheritance
 import org.jetbrains.amper.frontend.contexts.sameOrMoreSpecific
+import org.jetbrains.amper.frontend.tree.resolution.resolveReferences
+import org.jetbrains.amper.frontend.types.SchemaObjectDeclaration
 import org.jetbrains.amper.frontend.types.SchemaType
 import org.jetbrains.amper.problems.reporting.ProblemReporter
 import org.jetbrains.annotations.TestOnly
@@ -44,12 +46,10 @@ class TreeRefiner(
     fun refineTree(
         tree: MappingNode,
         selectedContexts: Contexts,
-        resolveReferences: Boolean = true,
         withDefaults: Boolean = true,
     ): RefinedMappingNode = RefineRequest(
         selectedContexts = selectedContexts,
         withDefaults = withDefaults,
-        resolveReferences = resolveReferences,
         contextComparator = contextComparator,
     ).refineMapping(tree)
 }
@@ -60,18 +60,15 @@ internal fun MappingNode.refineTree(
     selectedContexts: Contexts,
     contextComparator: ContextsInheritance<Context>,
     withDefaults: Boolean = true,
-    resolveReferences: Boolean = true,
 ): RefinedMappingNode = RefineRequest(
     selectedContexts = selectedContexts,
     withDefaults = withDefaults,
-    resolveReferences = resolveReferences,
     contextComparator = contextComparator,
 ).refineMapping(this)
 
 private class RefineRequest(
     private val selectedContexts: Contexts,
     private val withDefaults: Boolean,
-    private val resolveReferences: Boolean,
     contextComparator: ContextsInheritance<Context>,
 ) : ContextsInheritance<Context> by contextComparator {
 
@@ -81,27 +78,27 @@ private class RefineRequest(
      */
     context(_: ProblemReporter)
     fun refineMapping(node: MappingNode): RefinedMappingNode {
-        var refined = refine(node) as RefinedMappingNode
-        if (resolveReferences) {
-            // TODO: Incorporate reference resolution routine tightly into refining to enable merging resolved values.
-            refined = refined.resolveReferences()
-        }
-        return refined
+        val declaration = checkNotNull(node.declaration) { "Refining should start from the object node" }
+        // Question: Incorporate reference resolution routine tightly into refining to enable merging resolved values?
+        return refine(node, ExpectedType { declaration.toType() }).resolveReferences() as RefinedMappingNode
     }
 
     context(_: ProblemReporter)
-    private fun refine(node: TreeNode): RefinedTreeNode {
+    private fun refine(node: TreeNode, expectedType: ExpectedType): RefinedTreeNode {
         return when (node) {
             is RefinedTreeNode -> node
             is ListNode -> RefinedListNode(
-                children = node.children.filterByContexts().map { refine(it) },
-                type = node.type,
+                children = node.children.filterByContexts().map {
+                    refine(it, ExpectedType { (expectedType.type as SchemaType.ListType).elementType })
+                },
                 trace = node.trace,
                 contexts = node.contexts,
             )
             is MappingNode -> refinedMappingNodeWithDefaults(
-                node.children.refineProperties(),
-                type = node.type,
+                node.children.refineProperties(
+                    ownerType = recoverOwnerTypeOf(node = node, expectedType = expectedType)
+                ),
+                declaration = node.declaration,
                 trace = node.trace,
                 contexts = node.contexts,
             )
@@ -110,12 +107,13 @@ private class RefineRequest(
 
     /**
      * Merge named properties, comparing them by their contexts and by their name.
+     * @param ownerType the tracked/recovered type of the node these properties belong to
      */
     context(_: ProblemReporter)
-    private fun List<KeyValue>.refineProperties(): Map<String, RefinedKeyValue> =
+    private fun List<KeyValue>.refineProperties(ownerType: OwnerType): Map<String, RefinedKeyValue> =
         filterByContexts().run {
             // Do actual overriding for key-value pairs.
-            val refinedProperties = refineOrReduceByKeys { props ->
+            val refinedProperties = refineOrReduceByKeys(ownerType) { props ->
                 val groupedKeyValues = groupMostSpecificKeyValues(props)
                 check(groupedKeyValues.isNotEmpty()) { "Key values grouped by value shouldn't be empty" }
 
@@ -132,7 +130,11 @@ private class RefineRequest(
                     // We have conflicts, let's report an error node
                     val anyConflictingValueList = groupedKeyValues.values.first()
                     val anyKeyValue = anyConflictingValueList.first()
-                    return@refineOrReduceByKeys anyKeyValue.copyWithValue(ErrorNode(newTrace))
+                    return@refineOrReduceByKeys anyKeyValue.copyWithValue(
+                        // Here we finally use the `expectedType` we've been tracking.
+                        // In other "good" paths it doesn't play any role.
+                        ErrorNode(expectedType = recoverExpectedTypeOf(anyKeyValue, ownerType).type, trace = newTrace)
+                    )
                 }
 
                 val actualKeyValues = groupedKeyValues.values.single()
@@ -141,10 +143,10 @@ private class RefineRequest(
                 val refinedValue = when (val value = valueToUse.value) {
                     is LeafTreeNode -> value.copyWithTrace(newTrace)
                     is ListNode -> {
+                        val expectedType = recoverExpectedTypeOf(valueToUse, ownerType)
                         val children = partiallySortedProps.flatMap { (it.value as? ListNode)?.children.orEmpty() }
                         RefinedListNode(
-                            children = children.filterByContexts().map { refine(it) },
-                            type = value.type,
+                            children = children.filterByContexts().map { refine(it, expectedType = expectedType) },
                             trace = newTrace,
                             contexts = value.contexts,
                         )
@@ -152,8 +154,13 @@ private class RefineRequest(
                     is MappingNode -> {
                         val children = partiallySortedProps.flatMap { (it.value as? MappingNode)?.children.orEmpty() }
                         refinedMappingNodeWithDefaults(
-                            refinedChildren = children.refineProperties(),
-                            type = value.type,
+                            refinedChildren = children.refineProperties(
+                                ownerType = recoverOwnerTypeOf(
+                                    node = value,
+                                    expectedType = recoverExpectedTypeOf(valueToUse, ownerType),
+                                )
+                            ),
+                            declaration = value.declaration,
                             trace = newTrace,
                             contexts = value.contexts,
                         )
@@ -237,16 +244,16 @@ private class RefineRequest(
     context(_: ProblemReporter)
     private fun refinedMappingNodeWithDefaults(
         refinedChildren: Map<String, RefinedKeyValue>,
-        type: SchemaType.MapLikeType,
+        declaration: SchemaObjectDeclaration?,
         trace: Trace,
         contexts: Contexts,
     ): RefinedMappingNode {
-        val refinedChildrenWithDefaults = if (withDefaults && type is SchemaType.ObjectType) {
+        val refinedChildrenWithDefaults = if (withDefaults && declaration != null) {
             val defaults = buildMap {
-                for (property in type.declaration.properties) {
+                for (property in declaration.properties) {
                     val existingValue = refinedChildren[property.name]
                     if (existingValue == null || existingValue.value is ErrorNode) {
-                        type.declaration.getDefaultFor(property)?.let { default ->
+                        declaration.getDefaultFor(property)?.let { default ->
                             put(property.name, default)
                         }
                     }
@@ -258,7 +265,7 @@ private class RefineRequest(
         // TODO: We could report missing properties here and pull this logic from the `schemaInstantiator.kt`.
         return RefinedMappingNode(
             refinedChildren = refinedChildrenWithDefaults,
-            type = type,
+            declaration = declaration,
             trace = trace,
             contexts = contexts,
         )
@@ -268,12 +275,50 @@ private class RefineRequest(
      * Refines the element if it is single or applies [reduce] to a collection of properties grouped by keys.
      */
     context(_: ProblemReporter)
-    private fun List<KeyValue>.refineOrReduceByKeys(reduce: (List<KeyValue>) -> RefinedKeyValue) =
-        groupBy { it.key }.values.map { props ->
-            props.singleOrNull()?.let { it.copyWithValue(refine(it.value)) }
-                ?: props.filterByContexts().let(reduce)
-        }
+    private fun List<KeyValue>.refineOrReduceByKeys(
+        ownerType: OwnerType,
+        reduce: (List<KeyValue>) -> RefinedKeyValue,
+    ) = groupBy { it.key }.values.map { props ->
+        props.singleOrNull()?.let {
+            it.copyWithValue(refine(it.value, recoverExpectedTypeOf(it, ownerType)))
+        } ?: props.filterByContexts().let(reduce)
+    }
 
     private fun <T : WithContexts> List<T>.filterByContexts() =
         filter { selectedContexts.compareContexts(it.contexts).sameOrMoreSpecific }
+
+    /*
+     WARNING: Because of maven's "RAW" trees, where type contracts MAY BE violated,
+     we make this whole `ExpectedType`/`OwnerType` system lazy to avoid crashes.
+     In maven trees these types are never going to be queried, because they are "valid" by definition.
+     */
+
+    /**
+     * Schema-level type of node that is expected in some place (hole)
+     * @see recoverExpectedTypeOf
+     */
+    @JvmInline
+    private value class ExpectedType(private val _type: () -> SchemaType) {
+        val type get() = _type()
+    }
+
+    /**
+     * Factual type of [MappingNode].
+     * Is different from the [ExpectedType] because, e.g., expected type can be abstract (nullable, variant, etc.).
+     * @see recoverOwnerTypeOf
+     */
+    @JvmInline
+    private value class OwnerType(private val _type: () -> SchemaType.MapLikeType) {
+        val type get() = _type()
+    }
+
+    private fun recoverOwnerTypeOf(node: MappingNode, expectedType: ExpectedType) = OwnerType {
+        node.declaration?.toType() // Either the concrete `ObjectType`...
+            ?: expectedType.type as SchemaType.MapType  // ...or a MapType (from tracked expectedType).
+    }
+
+    private fun recoverExpectedTypeOf(keyValue: KeyValue, ownerType: OwnerType) = ExpectedType {
+        keyValue.propertyDeclaration?.type  // Derive the type from `propertyDeclaration` if owner type is ObjectType...
+            ?: (ownerType.type as SchemaType.MapType).valueType // ... or from `valueType` if the owner type is MapType
+    }
 }

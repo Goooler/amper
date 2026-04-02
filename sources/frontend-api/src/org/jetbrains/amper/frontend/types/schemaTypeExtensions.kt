@@ -44,14 +44,7 @@ fun SchemaType.render(
         }
         is SchemaType.IntType -> append("integer")
         is SchemaType.PathType -> append("path")
-        is SchemaType.StringType -> when (semantics) {
-            null -> append("string")
-            SchemaType.StringType.Semantics.MavenCoordinates -> append("maven-coordinates")
-            SchemaType.StringType.Semantics.JvmMainClass -> append("jvm-main-class")
-            SchemaType.StringType.Semantics.PluginSettingsClass -> append("plugin-settings-class")
-            SchemaType.StringType.Semantics.MavenPlexusConfigXml -> append("valid-xml")
-            SchemaType.StringType.Semantics.TaskName -> append("task-name")
-        }
+        is SchemaType.StringType -> append(semantics.render())
         is SchemaType.ListType -> append("sequence [${elementType.render(false)}]")
         is SchemaType.MapType -> append("mapping {${keyType.render(false)} : ${valueType.render(false)}}")
         is SchemaType.EnumType -> {
@@ -132,25 +125,13 @@ fun SchemaType.render(
     if (isMarkedNullable) append(" | null")
 }
 
-private fun String.quote() = '"' + this + '"'
-
-fun <T : SchemaType> T.withNullability(
-    isMarkedNullable: Boolean,
-): T {
-    if (isMarkedNullable == this.isMarkedNullable) {
-        return this
-    }
-    val copy = when (this) {
-        is SchemaType.ListType -> copy(isMarkedNullable = isMarkedNullable)
-        is SchemaType.MapType -> copy(isMarkedNullable = isMarkedNullable)
-        is SchemaType.ObjectType -> copy(isMarkedNullable = isMarkedNullable)
-        is SchemaType.BooleanType -> copy(isMarkedNullable = isMarkedNullable)
-        is SchemaType.EnumType -> copy(isMarkedNullable = isMarkedNullable)
-        is SchemaType.IntType -> copy(isMarkedNullable = isMarkedNullable)
-        is SchemaType.PathType -> copy(isMarkedNullable = isMarkedNullable)
-        is SchemaType.StringType -> copy(isMarkedNullable = isMarkedNullable)
-        is SchemaType.VariantType -> copy(isMarkedNullable = isMarkedNullable)
-    }
-    @Suppress("UNCHECKED_CAST") // the validity of this cast is enforced by each copy() function
-    return copy as T
+fun SchemaType.StringType.Semantics?.render(): String = when (this) {
+    SchemaType.StringType.Semantics.MavenCoordinates -> "maven-coordinates"
+    SchemaType.StringType.Semantics.JvmMainClass -> "jvm-main-class"
+    SchemaType.StringType.Semantics.PluginSettingsClass -> "plugin-settings-class"
+    SchemaType.StringType.Semantics.MavenPlexusConfigXml -> "valid-xml"
+    SchemaType.StringType.Semantics.TaskName -> "task-name"
+    null -> "string"
 }
+
+private fun String.quote() = '"' + this + '"'

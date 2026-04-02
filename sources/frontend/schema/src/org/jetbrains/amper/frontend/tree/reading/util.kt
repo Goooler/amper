@@ -17,6 +17,8 @@ import org.jetbrains.amper.frontend.tree.MappingNode
 import org.jetbrains.amper.frontend.tree.PathNode
 import org.jetbrains.amper.frontend.tree.StringNode
 import org.jetbrains.amper.frontend.tree.TreeDiagnosticId
+import org.jetbrains.amper.frontend.types.SchemaEnumDeclaration
+import org.jetbrains.amper.frontend.types.SchemaObjectDeclaration
 import org.jetbrains.amper.frontend.types.SchemaType
 import org.jetbrains.amper.frontend.types.render
 import org.jetbrains.amper.problems.reporting.BuildProblemType
@@ -26,33 +28,44 @@ import org.jetbrains.amper.problems.reporting.ProblemReporter
 import java.nio.file.Path
 
 context(contexts: Contexts)
-internal fun booleanNode(origin: YamlValue.Scalar, type: SchemaType.BooleanType, value: Boolean) =
-    BooleanNode(value, type, origin.asTrace(), contexts)
+internal fun booleanNode(origin: YamlValue.Scalar, value: Boolean) =
+    BooleanNode(value, origin.asTrace(), contexts)
 
 context(contexts: Contexts)
-internal fun stringNode(origin: YamlValue.Scalar, type: SchemaType.StringType, value: String) =
-    StringNode(value, type, origin.asTrace(), contexts)
+internal fun stringNode(origin: YamlValue.Scalar, semantics: SchemaType.StringType.Semantics?, value: String) =
+    StringNode(value, semantics, origin.asTrace(), contexts)
 
 context(contexts: Contexts)
-internal fun intNode(origin: YamlValue.Scalar, type: SchemaType.IntType, value: Int) =
-    IntNode(value, type, origin.asTrace(), contexts)
+internal fun intNode(origin: YamlValue.Scalar, value: Int) =
+    IntNode(value, origin.asTrace(), contexts)
 
 context(contexts: Contexts)
-internal fun enumNode(origin: YamlValue.Scalar, type: SchemaType.EnumType, value: String) =
-    EnumNode(value, type, origin.asTrace(), contexts)
+internal fun enumNode(origin: YamlValue.Scalar, declaration: SchemaEnumDeclaration, value: String) =
+    EnumNode(value, declaration, origin.asTrace(), contexts)
 
 context(contexts: Contexts)
-internal fun pathNode(origin: YamlValue.Scalar, type: SchemaType.PathType, value: Path) =
-    PathNode(value, type, origin.asTrace(), contexts)
+internal fun pathNode(origin: YamlValue.Scalar, value: Path) =
+    PathNode(value, origin.asTrace(), contexts)
 
 context(contexts: Contexts)
-internal fun mappingNode(
+internal fun mapNode(
     origin: YamlValue,
-    type: SchemaType.MapLikeType,
     children: List<KeyValue>,
 ) = MappingNode(
     children = children,
-    type = type,
+    declaration = null,
+    trace = origin.asTrace(),
+    contexts = contexts,
+)
+
+context(contexts: Contexts)
+internal fun objectNode(
+    origin: YamlValue,
+    declaration: SchemaObjectDeclaration,
+    children: List<KeyValue>,
+) = MappingNode(
+    children = children,
+    declaration = declaration,
     trace = origin.asTrace(),
     contexts = contexts,
 )

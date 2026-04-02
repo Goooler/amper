@@ -61,7 +61,7 @@ fun readTree(
                 type = type,
             )
         }
-    } ?: MappingNode(emptyList(), type, file.asTrace(), rootContexts)
+    } ?: MappingNode(emptyList(), type.declaration, file.asTrace(), rootContexts)
 }
 
 context(_: ProblemReporter, _: FrontendPathResolver)

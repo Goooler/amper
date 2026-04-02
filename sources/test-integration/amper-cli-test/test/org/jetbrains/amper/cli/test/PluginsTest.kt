@@ -525,11 +525,42 @@ class PluginsTest : AmperCliTestBase() {
                 "${pluginYaml}:4:13: No value for required task action parameter 'int'.",
                 "${pluginYaml}:4:13: No value for required property 'classpath.dependencies'.",
                 "${pluginYaml}:19:24: Unable to find reference's starting element `unknownRoot` in the current context",
-                "${pluginYaml}:19:24: Unable to resolve `missing`: its parent (`requiredString`) is not a mapping",
-                "${pluginYaml}:19:24: Unable to resolve `unknown`: no such key/property is found in type Settings",
+                "${pluginYaml}:19:24: Unable to resolve `missing` on a non-object type `string`",
+                "${pluginYaml}:19:24: Unable to resolve `unknown`: no such property is found in type `Settings`",
+                "${pluginYaml}:10:20: The value of type `path | null` cannot be assigned to the type `integer | null`",
             )
             assertWarnings(
                 "${pluginYaml}:16:11: Maven classifiers are currently not supported",
+            )
+        }
+    }
+
+    @Test
+    fun `detached plugin - gets diagnosed`() = runSlowTest {
+        val result = runCli(
+            projectDir = testProject("extensibility/reference-loops"),
+            "show", "tasks",
+            copyToTempDir = true,
+            assertEmptyStdErr = false,
+            expectedExitCode = 1,
+        )
+        with(result) {
+            val pluginYaml = projectDir / "loop-plugin" / "plugin.yaml"
+            assertErrors(
+                """
+                Reference loop(s) detected. Please ensure that references do not point to each other or to their own supertree
+                ╰─ References forming the loop:
+                   ├─ $pluginYaml:5:11
+                   ╰─ $pluginYaml:6:11
+                """.trimIndent(),
+                """
+                Reference loop(s) detected. Please ensure that references do not point to each other or to their own supertree
+                ╰─ References forming the loop:
+                   ├─ $pluginYaml:9:11
+                   ├─ $pluginYaml:11:14
+                   ╰─ $pluginYaml:12:11
+                """.trimIndent(),
+                "${pluginYaml}:15:11: Accessing properties/keys on the nullable type `Nested | null` is not allowed.",
             )
         }
     }
@@ -628,6 +659,18 @@ class PluginsTest : AmperCliTestBase() {
         )
         result.assertStdoutContains("Hello!")
         result.assertStdoutContains("Generating Build Konfig...")
+    }
+
+    @Test
+    fun `cascading references`() = runSlowTest {
+        val result = runCli(
+            projectDir = testProject("extensibility/cascading-references"),
+            "task", ":app:task2@my-plugin",
+            copyToTempDir = true,
+        )
+        val buildDir = tempRoot / "build"
+        result.assertStdoutContains("taskAction1: path=${buildDir / "tasks" / "_app_task1@my-plugin" / "file.txt"}, name=test")
+        result.assertStdoutContains("taskAction2: path=${buildDir / "tasks" / "_app_task1@my-plugin" / "file.txt"}, name=test")
     }
 
     private fun AmperCliResult.assertCustomTaskStdoutContains(

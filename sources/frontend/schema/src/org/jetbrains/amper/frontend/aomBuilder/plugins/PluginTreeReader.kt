@@ -45,10 +45,12 @@ import org.jetbrains.amper.frontend.types.SchemaType
 import org.jetbrains.amper.frontend.types.SchemaTypingContext
 import org.jetbrains.amper.frontend.types.generated.*
 import org.jetbrains.amper.plugins.schema.model.PluginData
+import org.jetbrains.amper.problems.reporting.CollectingProblemReporter
 import org.jetbrains.amper.problems.reporting.FileBuildProblemSource
 import org.jetbrains.amper.problems.reporting.Level
 import org.jetbrains.amper.problems.reporting.MultipleLocationsBuildProblemSource
 import org.jetbrains.amper.problems.reporting.ProblemReporter
+import org.jetbrains.amper.problems.reporting.replayProblemsTo
 
 internal class PluginTreeReader(
     private val projectContext: AmperProjectContext,
@@ -63,26 +65,40 @@ internal class PluginTreeReader(
 
     private val pluginYamlDeclaration = types.pluginYamlDeclaration(pluginData.id)
 
-    private val pluginTree: RefinedMappingNode = context(problemReporter, pathResolver) {
-        val tree = readTree(
-            file = pluginFile,
-            declaration = pluginYamlDeclaration,
-            reportUnknowns = true,
-            referenceParsingMode = ReferencesParsingMode.Parse,
-            parseContexts = false,
-        )
+    // If this tree is null (due to errors), then the plugin will be NOP
+    private val pluginTree: RefinedMappingNode? = run {
+        val tree = context(problemReporter, pathResolver) {
+            readTree(
+                file = pluginFile,
+                declaration = pluginYamlDeclaration,
+                reportUnknowns = true,
+                referenceParsingMode = ReferencesParsingMode.Parse,
+                parseContexts = false,
+            )
+        }
 
-        // We do not resolve references here for the general plugin tree;
-        // the reference-only values are added later for each module.
-        treeRefiner.refineTree(tree, EmptyContexts, resolveReferences = false)
+        val proxyReporter = CollectingProblemReporter()
+        context(proxyReporter) {
+            val refinedTree = treeRefiner.refineTree(tree, EmptyContexts)
+
+            // Purely for reporting missing properties
+            // TODO: Maybe extract just properties reporting routine so we don't so unnecessary transform?
+            refinedTree.completeTree(TaskParameterAwareMissingPropertiesHandler(problemReporter))
+            // We don't need to save the result
+
+            proxyReporter.replayProblemsTo(problemReporter)
+
+            // If errors are detected, don't save the tree. No point in applying the plugin with errors.
+            refinedTree.takeUnless { proxyReporter.problems.any { it.level == Level.Error } }
+        }
     }
 
     init {
-        // Purely for reporting missing properties
-        // TODO: Maybe extract just properties reporting routine so we don't so unnecessary transform?
-        pluginTree.completeTree(TaskParameterAwareMissingPropertiesHandler(problemReporter))
-        // We don't need to save the result
+        diagnoseNoTasks(problemReporter)
+    }
 
+    private fun diagnoseNoTasks(problemReporter: ProblemReporter) {
+        if (pluginTree == null) return
         val tasks = pluginTree[PluginYamlRoot::tasks] as? MappingNode
         if (tasks == null || tasks.children.isEmpty()) {
             problemReporter.reportBundleError(
@@ -97,7 +113,7 @@ internal class PluginTreeReader(
             val taskNames = tasks.children.map { it.key }
             val allTaskNameReferences = buildSet {
                 pluginTree.visitNodes { node ->
-                    if (node is StringNode && node.type.semantics == SchemaType.StringType.Semantics.TaskName) {
+                    if (node is StringNode && node.semantics == SchemaType.StringType.Semantics.TaskName) {
                         add(node)
                     }
                 }
@@ -122,6 +138,7 @@ internal class PluginTreeReader(
     fun asAppliedTo(
         module: ModuleBuildCtx,
     ): PluginYamlRoot? = context(problemReporter) {
+        if (pluginTree == null) return null
         val moduleRootDir = module.module.source.moduleDir
         val pluginConfiguration = module.pluginsTree[pluginData.id.value] as? RefinedMappingNode
             ?: return@context null
@@ -144,9 +161,7 @@ internal class PluginTreeReader(
             modulePath(moduleRootDir)
         }
         val referenceValuesTree = buildTree(pluginYamlDeclaration) {
-            if (pluginData.pluginSettingsSchemaName != null) {
-                pluginSettings(pluginConfiguration)
-            }
+            pluginSettings(pluginConfiguration)
             module {
                 name(module.module.userReadableName)
                 rootDir(moduleRootDir)

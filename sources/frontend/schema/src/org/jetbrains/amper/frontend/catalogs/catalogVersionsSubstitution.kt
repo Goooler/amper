@@ -21,7 +21,6 @@ import org.jetbrains.amper.frontend.tree.StringNode
 import org.jetbrains.amper.frontend.tree.TransformResult
 import org.jetbrains.amper.frontend.tree.TreeTransformer
 import org.jetbrains.amper.frontend.tree.copy
-import org.jetbrains.amper.frontend.tree.declaration
 import org.jetbrains.amper.frontend.types.SchemaType
 import org.jetbrains.amper.frontend.types.generated.*
 import org.jetbrains.amper.problems.reporting.ProblemReporter
@@ -58,7 +57,7 @@ internal class CatalogVersionsSubstitutor(
         }
         val newCValue = StringNode(
             value = found.value,
-            type = coordinatesProperty.type as SchemaType.StringType,
+            semantics = (coordinatesProperty.type as SchemaType.StringType).semantics,
             trace = ResolvedReferenceTrace(
                 description = "from $catalogKey",
                 referenceTrace = catalogKeyScalar.trace,
@@ -68,7 +67,7 @@ internal class CatalogVersionsSubstitutor(
         )
         val newChildren = node.children - catalogKeyProp +
                 KeyValue(catalogKeyProp.keyTrace, newCValue, coordinatesProperty, catalogKeyProp.trace)
-        return Changed(node.copy(children = newChildren, type = substituted.toType()))
+        return Changed(node.copy(children = newChildren, declaration = substituted))
     }
 }
 

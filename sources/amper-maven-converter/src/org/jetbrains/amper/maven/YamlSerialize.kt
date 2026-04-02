@@ -19,7 +19,6 @@ import org.jetbrains.amper.frontend.tree.StringNode
 import org.jetbrains.amper.frontend.tree.TreeNode
 import org.jetbrains.amper.frontend.tree.TreeRefiner
 import org.jetbrains.amper.frontend.tree.copy
-import org.jetbrains.amper.frontend.tree.declaration
 import org.jetbrains.amper.frontend.tree.schemaValue
 import org.jetbrains.amper.frontend.types.SchemaType
 import org.jetbrains.amper.problems.reporting.CollectingProblemReporter
@@ -104,7 +103,7 @@ private fun MappingNode.serializeToYaml(indent: Int, currentPath: List<String>, 
             return@buildString
         } else {
             append(":")
-            append(this@serializeToYaml.copy(theRest, type, trace, contexts).serializeToYaml(indent + 1, currentPath, comments))
+            append(this@serializeToYaml.copy(theRest, declaration, trace, contexts).serializeToYaml(indent + 1, currentPath, comments))
             return@buildString
         }
     }

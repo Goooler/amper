@@ -38,7 +38,7 @@ class PluginYamlRoot : SchemaNode() {
 
     @ReadOnly
     @CanBeReferenced
-    val pluginSettings: PluginSettingsPlaceholder? by nullableValue()
+    val pluginSettings: PluginSettingsPlaceholder by value()
 }
 
 @CustomSchemaDeclaration
