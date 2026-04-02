@@ -6,6 +6,9 @@ package org.jetbrains.amper.cli
 
 import org.jetbrains.amper.CliBundle
 import org.jetbrains.amper.frontend.asBuildProblemSource
+import org.jetbrains.amper.frontend.catalogs.ComposeMaterial3UnknownVersionMappingProblem
+import org.jetbrains.amper.frontend.messages.PsiBuildProblemSource
+import org.jetbrains.amper.frontend.messages.extractPsiElement
 import org.jetbrains.amper.frontend.tree.BooleanNode
 import org.jetbrains.amper.frontend.tree.ConflictingProperties
 import org.jetbrains.amper.frontend.tree.EnumNode
@@ -24,6 +27,7 @@ import org.jetbrains.amper.problems.reporting.BuildProblem
 import org.jetbrains.amper.problems.reporting.FileBuildProblemSource
 import org.jetbrains.amper.problems.reporting.Level
 import org.jetbrains.amper.problems.reporting.ProblemReporter
+import org.jetbrains.amper.problems.reporting.appendFileSource
 import org.jetbrains.amper.problems.reporting.appendMultipleSources
 import org.jetbrains.amper.problems.reporting.renderMessage
 import org.jetbrains.amper.stdlib.collections.forEachEndAware
@@ -39,6 +43,7 @@ internal object CliProblemReporter : ProblemReporter {
     override fun reportMessage(message: BuildProblem) {
         val renderedMessage = when (message) {
             is ConflictingProperties -> reportConflictingProperties(message)
+            is ComposeMaterial3UnknownVersionMappingProblem -> reportComposeMaterial3UnknownVersionMapping(message)
             else -> renderMessage(message)
         }
 
@@ -51,6 +56,13 @@ internal object CliProblemReporter : ProblemReporter {
             Level.WeakWarning -> logger.info(renderedMessage)
         }
     }
+
+    private fun reportComposeMaterial3UnknownVersionMapping(problem: ComposeMaterial3UnknownVersionMappingProblem) =
+        buildString {
+            appendLine(problem.message)
+            append(CliBundle.message("compose.material3.unknown.mapping.compose.version", problem.composeVersion))
+            appendFileSource(PsiBuildProblemSource(problem.composeVersionTrace.extractPsiElement()))
+        }
 
     private fun reportConflictingProperties(message: ConflictingProperties): String = buildString {
         appendLine(CliBundle.message(

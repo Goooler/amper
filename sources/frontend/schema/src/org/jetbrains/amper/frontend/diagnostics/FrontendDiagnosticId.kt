@@ -18,6 +18,7 @@ enum class FrontendDiagnosticId : DiagnosticId {
     AliasUsesUndeclaredPlatform,
     AndroidVersionShouldBeAtLeastMinSdk,
     AndroidVersionTooOld,
+    ComposeMaterial3UnknownVersionMapping,
     ComposeVersionWithoutCompose,
     CredentialsFileDoesNotExist,
     CredentialsFileDoesNotHaveKey,

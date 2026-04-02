@@ -364,6 +364,7 @@ private fun library(groupAndModule: String, version: TraceableVersion): Traceabl
         trace = BuiltinCatalogTrace(catalog, version = version),
     )
 
+internal const val UNKNOWN_COMPOSE_MATERIAL3_VERSION_DESCRIPTION_PREFIX = "aligned with the Compose version because the correct material3 version was unknown"
 
 /**
  * Gets the Compose Material3 version corresponding to a given Compose version.
@@ -397,6 +398,7 @@ private fun composeMaterial3VersionForCMPVersion(composeVersion: TraceableVersio
         "1.10.3" -> "1.10.0-alpha05" // https://github.com/JetBrains/compose-multiplatform/releases/tag/v1.10.3
         else -> null // not known yet, or regular alphas/betas/rcs
     }
+    val latestMaterial3Version = "1.10.0-alpha05"
     if (material3Version != null) {
         return TraceableVersion(
             value = material3Version,
@@ -410,9 +412,9 @@ private fun composeMaterial3VersionForCMPVersion(composeVersion: TraceableVersio
         )
     }
     return TraceableVersion(
-        value = composeVersion.value,
+        value = latestMaterial3Version,
         trace = TransformedValueTrace(
-            description = "aligned with the Compose version because the correct material3 version was unknown " +
+            description = "$UNKNOWN_COMPOSE_MATERIAL3_VERSION_DESCRIPTION_PREFIX " +
                     "for Compose ${composeVersion.value} at the time Amper ${AmperBuild.mavenVersion} was released",
             sourceValue = composeVersion,
         ),
