@@ -67,6 +67,20 @@ internal data class Dependency(
     val attributes: Map<String, String> = mapOf(),
     val endorseStrictVersions: Boolean? = null,
     val reason: String? = null,
+    val thirdPartyCompatibility: ThirdPartyCompatibility? = null
+)
+
+@Serializable
+internal data class ThirdPartyCompatibility (
+    val artifactSelector: ArtifactSelector? = null,
+)
+
+@Serializable
+internal data class ArtifactSelector (
+    val name: String? = null,
+    val type: String? = null,
+    val extension: String? = null,
+    val classifier: String? = null,
 )
 
 @Serializable

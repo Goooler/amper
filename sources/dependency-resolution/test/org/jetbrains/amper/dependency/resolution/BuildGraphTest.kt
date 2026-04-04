@@ -546,6 +546,20 @@ class BuildGraphTest : BaseDRTest() {
     }
 
     /**
+     * This test checks that a dependency classifier specified in Gradle metadata is taken into account
+     * and the appropriate artifact is added to the graph
+     */
+    @Test
+    fun `bayern_steinbrecher JavaUtility 0_10`(testInfo: TestInfo) = runDrTest {
+        val root = doTestByFile(
+            testInfo = testInfo,
+            scope = ResolutionScope.RUNTIME,
+            verifyMessages = true
+        )
+        downloadAndAssertFiles(testInfo, root)
+    }
+
+    /**
      * This test checks that a POM file of dependency could use properties defined in the parent POM
      * (or in any of its parents).
      *

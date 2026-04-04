@@ -416,7 +416,7 @@ class ResolveFromMavenLocalTest : BaseDRTest() {
         get() = "$urlFolderPath/$fileName"
 
     private val MavenCoordinates.fileName
-        get() = "$artifactId-$version${classifier?.let { "-$it" }?:""}.jar"
+        get() = "$artifactId-$version${classifier?.let { "-$it" } ?: ""}.jar"
 
     /**
      * Create Amper like configuration of repositories.

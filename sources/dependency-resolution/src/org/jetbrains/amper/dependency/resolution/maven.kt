@@ -1255,9 +1255,8 @@ class MavenDependencyImpl internal constructor(
         reportError: (reason: String) -> Unit = {},
     ): MavenCoordinates {
         val resolvedVersion = resolveVersion(reportError)
-        // todo (AB): [AMPER-774] How to get classifier from Gradle metadata type 'Dependency
-        //  (see 'thirdPartyCompatibility')
-        return mavenCoordinatesTrimmed(groupId = group, artifactId = module, version = resolvedVersion)
+        val classifier = thirdPartyCompatibility?.artifactSelector?.classifier
+        return mavenCoordinatesTrimmed(groupId = group, artifactId = module, version = resolvedVersion, classifier = classifier)
     }
 
     private fun Dependency.toMavenDependency(
