@@ -77,8 +77,9 @@ fun AmperCliResult.assertErrors(
     vararg expectedErrors: String,
 ) {
     assertEquals(
-        expected = expectedErrors.sorted(),
-        actual = infoLogs.filter { it.level == Level.ERROR }.map { it.message.trim() }.sorted(),
+        expected = expectedErrors.joinToSortedColumn(),
+        actual = infoLogs.filter { it.level == Level.ERROR }.map { it.message.trim() }.joinToSortedColumn(),
+        message = "Expected errors do not match the actual",
     )
 }
 
@@ -86,7 +87,11 @@ fun AmperCliResult.assertWarnings(
     vararg expectedWarnings: String,
 ) {
     assertEquals(
-        expected = expectedWarnings.sorted(),
-        actual = infoLogs.filter { it.level == Level.WARN }.map { it.message.trim() }.sorted(),
+        expected = expectedWarnings.joinToSortedColumn(),
+        actual = infoLogs.filter { it.level == Level.WARN }.map { it.message.trim() }.joinToSortedColumn(),
+        message = "Expected warnings do not match the actual",
     )
 }
+
+private fun List<String>.joinToSortedColumn() = sorted().joinToString("\n")
+private fun Array<out String>.joinToSortedColumn() = asList().joinToSortedColumn()
