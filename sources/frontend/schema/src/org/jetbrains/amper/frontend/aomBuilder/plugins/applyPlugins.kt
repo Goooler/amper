@@ -32,7 +32,7 @@ import kotlin.io.path.pathString
  */
 context(problemReporter: ProblemReporter)
 internal fun applyPlugins(
-    plugins: List<PluginTreeReader>,
+    plugins: List<AmperPluginImpl>,
     moduleBuildCtx: ModuleBuildCtx,
     allModules: List<ModuleBuildCtx>,
 ) {
@@ -85,7 +85,7 @@ internal fun applyPlugins(
             }
             val taskDescription = TaskFromPluginDescription(
                 name = name,
-                pluginId = plugin.pluginData.id,
+                pluginId = plugin.id,
                 appliedTo = moduleBuildCtx.module,
                 backendTaskName = plugin.taskNameFor(moduleBuildCtx.module, name),
                 actionFunctionJvmName = taskInfo.jvmFunctionName,
@@ -136,7 +136,7 @@ internal fun applyPlugins(
             val checkerDescription = CheckFromPlugin(
                 name = checker.name,
                 performedBy = plugin.taskNameFor(moduleBuildCtx.module, checker.performedBy),
-                pluginId = plugin.pluginData.id,
+                pluginId = plugin.id,
             )
             moduleBuildCtx.module.checksFromPlugins += checkerDescription
         }
@@ -148,7 +148,7 @@ internal fun applyPlugins(
             val commandDescription = CustomCommandFromPlugin(
                 name = command.name,
                 performedBy = plugin.taskNameFor(moduleBuildCtx.module, command.performedBy),
-                pluginId = plugin.pluginData.id,
+                pluginId = plugin.id,
             )
             moduleBuildCtx.module.customCommandsFromPlugins += commandDescription
         }

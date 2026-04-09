@@ -14,7 +14,7 @@ import org.jetbrains.amper.frontend.MavenDependency
 import org.jetbrains.amper.frontend.Model
 import org.jetbrains.amper.frontend.Notation
 import org.jetbrains.amper.frontend.VersionCatalog
-import org.jetbrains.amper.frontend.aomBuilder.plugins.buildPlugins
+import org.jetbrains.amper.frontend.aomBuilder.plugins.buildAndApplyPlugins
 import org.jetbrains.amper.frontend.api.Trace
 import org.jetbrains.amper.frontend.api.asTrace
 import org.jetbrains.amper.frontend.api.asTraceableValue
@@ -117,7 +117,7 @@ internal fun AmperProjectContext.doReadProjectModel(
     modules.forEach { it.module.addImplicitDependencies() }
 
     // Load plugins that exist in the project
-    buildPlugins(pluginData, projectContext = this@doReadProjectModel, modules)
+    val amperPlugins = buildAndApplyPlugins(pluginData, projectContext = this@doReadProjectModel, modules)
     
     // Add read maven plugin xmls.
     modules.forEach { 
@@ -132,6 +132,7 @@ internal fun AmperProjectContext.doReadProjectModel(
         projectRoot = projectRootDir.toNioPath(),
         modules = modules.map { it.module },
         unreadableModuleFiles = unreadableModuleFiles,
+        amperPlugins = amperPlugins,
     )
     AomModelDiagnosticFactories.forEach { it.analyze(model, problemReporter) }
     return model

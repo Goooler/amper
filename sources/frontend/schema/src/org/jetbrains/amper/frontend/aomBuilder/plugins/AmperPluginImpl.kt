@@ -6,6 +6,7 @@ package org.jetbrains.amper.frontend.aomBuilder.plugins
 
 import com.intellij.openapi.vfs.VirtualFile
 import org.jetbrains.amper.frontend.AmperModule
+import org.jetbrains.amper.frontend.AmperPlugin
 import org.jetbrains.amper.frontend.FrontendPathResolver
 import org.jetbrains.amper.frontend.SchemaBundle
 import org.jetbrains.amper.frontend.TaskName
@@ -15,7 +16,6 @@ import org.jetbrains.amper.frontend.api.isDefault
 import org.jetbrains.amper.frontend.asBuildProblemSource
 import org.jetbrains.amper.frontend.catalogs.substituteCatalogDependencies
 import org.jetbrains.amper.frontend.contexts.EmptyContexts
-import org.jetbrains.amper.frontend.messages.PsiBuildProblemSource
 import org.jetbrains.amper.frontend.plugins.PluginYamlRoot
 import org.jetbrains.amper.frontend.plugins.generated.ShadowResolutionScope
 import org.jetbrains.amper.frontend.plugins.generated.ShadowSourcesKind
@@ -24,12 +24,8 @@ import org.jetbrains.amper.frontend.project.getTaskOutputRoot
 import org.jetbrains.amper.frontend.reportBundleError
 import org.jetbrains.amper.frontend.tree.BooleanNode
 import org.jetbrains.amper.frontend.tree.ErrorNode
-import org.jetbrains.amper.frontend.tree.MappingNode
 import org.jetbrains.amper.frontend.tree.MissingPropertiesHandler
-import org.jetbrains.amper.frontend.tree.RecurringRefinedTreeVisitorUnit
 import org.jetbrains.amper.frontend.tree.RefinedMappingNode
-import org.jetbrains.amper.frontend.tree.StringNode
-import org.jetbrains.amper.frontend.tree.TreeDiagnosticId
 import org.jetbrains.amper.frontend.tree.TreeRefiner
 import org.jetbrains.amper.frontend.tree.add
 import org.jetbrains.amper.frontend.tree.buildTree
@@ -41,9 +37,6 @@ import org.jetbrains.amper.frontend.tree.mergeTrees
 import org.jetbrains.amper.frontend.tree.put
 import org.jetbrains.amper.frontend.tree.reading.ReferencesParsingMode
 import org.jetbrains.amper.frontend.tree.reading.readTree
-import org.jetbrains.amper.frontend.tree.resolution.subtreeContainsResolvableNodes
-import org.jetbrains.amper.frontend.tree.visitNodes
-import org.jetbrains.amper.frontend.types.SchemaType
 import org.jetbrains.amper.frontend.types.SchemaTypingContext
 import org.jetbrains.amper.frontend.types.generated.*
 import org.jetbrains.amper.plugins.schema.model.PluginData
@@ -54,18 +47,17 @@ import org.jetbrains.amper.problems.reporting.MultipleLocationsBuildProblemSourc
 import org.jetbrains.amper.problems.reporting.ProblemReporter
 import org.jetbrains.amper.problems.reporting.replayProblemsTo
 
-internal class PluginTreeReader(
+internal class AmperPluginImpl(
     private val projectContext: AmperProjectContext,
-    val pluginModule: AmperModule,
-    val pluginData: PluginData,
+    override val pluginModule: AmperModule,
+    override val id: PluginData.Id,
     pluginFile: VirtualFile,
     types: SchemaTypingContext,
     problemReporter: ProblemReporter,
     pathResolver: FrontendPathResolver,
-) {
+) : AmperPlugin {
     private val treeRefiner = TreeRefiner()
-
-    private val pluginYamlDeclaration = types.pluginYamlDeclaration(pluginData.id)
+    private val pluginYamlDeclaration = types.pluginYamlDeclaration(id)
 
     // If this tree is null (due to errors), then the plugin will be NOP
     private val pluginTree: RefinedMappingNode? = run {
@@ -99,7 +91,7 @@ internal class PluginTreeReader(
     ): PluginYamlRoot? = context(problemReporter) {
         if (pluginTree == null) return null
         val moduleRootDir = module.module.source.moduleDir
-        val pluginConfiguration = module.pluginsTree[pluginData.id.value] as? RefinedMappingNode
+        val pluginConfiguration = module.pluginsTree[id.value] as? RefinedMappingNode
             ?: return@context null
 
         val enabled = (pluginConfiguration["enabled"] as? BooleanNode)?.value
@@ -162,7 +154,7 @@ internal class PluginTreeReader(
     }
 
     fun taskNameFor(module: AmperModule, name: String) =
-        TaskName.moduleTask(module, "$name@${pluginData.id.value}")
+        TaskName.moduleTask(module, "$name@${id.value}")
 
     context(problemReporter: ProblemReporter)
     private fun reportExplicitValuesWhenDisabled(pluginConfiguration: RefinedMappingNode) {
@@ -176,7 +168,7 @@ internal class PluginTreeReader(
             problemReporter.reportBundleError(
                 source = source,
                 diagnosticId = PluginDiagnosticId.PluginNotEnabledButConfigured,
-                messageKey = "plugin.unexpected.configuration.when.disabled", pluginData.id.value,
+                messageKey = "plugin.unexpected.configuration.when.disabled", id.value,
                 level = Level.Warning,
             )
         }

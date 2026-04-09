@@ -25,11 +25,11 @@ import kotlin.io.path.div
 import kotlin.io.path.isRegularFile
 
 context(problemReporter: ProblemReporter, types: SchemaTypingContext, pathResolver: FrontendPathResolver)
-internal fun createPluginReaders(
+internal fun readPlugins(
     projectContext: AmperProjectContext,
     modules: List<ModuleBuildCtx>,
     pluginData: List<PluginData>,
-): List<PluginTreeReader> {
+): List<AmperPluginImpl> {
     val seenPluginIds = hashMapOf<String, MutableList<TraceableString>>()
     val pluginReaders = projectContext.pluginsModuleFiles.mapNotNull mapPlugins@{ pluginModuleFile ->
         val pluginModule = modules.find { it.moduleFile == pluginModuleFile }
@@ -85,9 +85,9 @@ internal fun createPluginReaders(
             pluginFile
         }
 
-        PluginTreeReader(
+        AmperPluginImpl(
             projectContext = projectContext,
-            pluginData = pluginData,
+            id = pluginData.id,
             pluginFile = projectContext.frontendPathResolver.loadVirtualFile(pluginFile),
             pluginModule = pluginModule.module,
             problemReporter = problemReporter,

@@ -8,6 +8,7 @@ import com.intellij.openapi.util.NlsSafe
 import com.intellij.openapi.vfs.VirtualFile
 import org.jetbrains.amper.frontend.AmperModule
 import org.jetbrains.amper.frontend.AmperModuleFileSource
+import org.jetbrains.amper.frontend.AmperPlugin
 import org.jetbrains.amper.frontend.Artifact
 import org.jetbrains.amper.frontend.ClassBasedSet
 import org.jetbrains.amper.frontend.DefaultScopedNotation
@@ -35,6 +36,7 @@ data class DefaultModel(
     override val projectRoot: Path,
     override val modules: List<AmperModule>,
     override val unreadableModuleFiles: Set<VirtualFile>,
+    override val amperPlugins: List<AmperPlugin>,
 ) : Model
 
 internal open class DefaultModule(
