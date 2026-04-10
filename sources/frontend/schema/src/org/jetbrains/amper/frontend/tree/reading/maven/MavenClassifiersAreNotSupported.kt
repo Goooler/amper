@@ -12,6 +12,9 @@ import org.jetbrains.amper.problems.reporting.DiagnosticId
 import org.jetbrains.amper.problems.reporting.Level
 import org.jetbrains.annotations.Nls
 
+@Deprecated("Classifiers are now supported in coordinates since AMPER-774. " +
+        "The reporting for incorrect classifier matching shorthand (missing space problem) will be moved to after-DR phase.")
+@UsedInIdePlugin
 class MavenClassifiersAreNotSupported(
     override val element: PsiElement,
     override val coordinates: String,

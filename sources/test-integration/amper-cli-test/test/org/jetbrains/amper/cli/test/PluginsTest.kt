@@ -534,9 +534,6 @@ class PluginsTest : AmperCliTestBase() {
                 "${pluginYaml}:19:24: Unable to resolve `unknown`: no such property is found in type `Settings`",
                 "${pluginYaml}:10:20: The value of type `path | null` cannot be assigned to the type `integer | null`",
             )
-            assertWarnings(
-                "${pluginYaml}:16:11: Maven classifiers are currently not supported",
-            )
         }
     }
 
