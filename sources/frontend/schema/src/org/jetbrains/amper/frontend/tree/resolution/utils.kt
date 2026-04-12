@@ -75,4 +75,5 @@ internal fun ReferenceNode.transformedTrace(
     )
 }
 
-internal fun ErrorNode(unresolved: ResolvableNode) = ErrorNode(unresolved.expectedType, unresolved.trace)
+internal fun ErrorNode(unresolved: ResolvableNode) =
+    ErrorNode(unresolved.expectedType, unresolved.trace, unresolved.contexts)

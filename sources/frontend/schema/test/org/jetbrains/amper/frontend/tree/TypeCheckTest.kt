@@ -341,13 +341,13 @@ class TypeCheckTest {
 
     @Test
     fun `cast - error node`() {
-        val errorNode = ErrorNode(stringType, DefaultTrace)
+        val errorNode = ErrorNode(stringType, DefaultTrace, EmptyContexts)
         
         assertSame(errorNode, stringType.cast(errorNode))
         assertNull(intType.cast(errorNode))
         
         // "Covariance" in error node
-        val pathErrorNode = ErrorNode(pathType, DefaultTrace)
+        val pathErrorNode = ErrorNode(pathType, DefaultTrace, EmptyContexts)
         assertSame(pathErrorNode, stringType.cast(pathErrorNode))
     }
 

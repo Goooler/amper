@@ -6,7 +6,6 @@ package org.jetbrains.amper.frontend.tree
 
 import org.jetbrains.amper.frontend.api.Trace
 import org.jetbrains.amper.frontend.contexts.Contexts
-import org.jetbrains.amper.frontend.contexts.EmptyContexts
 import org.jetbrains.amper.frontend.types.SchemaType
 
 /**
@@ -23,9 +22,8 @@ class ErrorNode(
      * contains no value (E.g. `foo: ` in YAML).
      */
     override val trace: Trace,
-) : LeafTreeNode {
-    override val contexts = EmptyContexts
-}
+    override val contexts: Contexts,
+) : LeafTreeNode
 
 /**
  * Represents the null literal.

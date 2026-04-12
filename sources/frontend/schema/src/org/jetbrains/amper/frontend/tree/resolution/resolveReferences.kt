@@ -283,7 +283,7 @@ private class ReferenceResolutionSession(
         }
         return when {
             // At least one part is unresolved - the whole interpolation becomes an error node
-            resolvedParts.anyNull() -> ErrorNode(interpolationNode.expectedType, interpolationNode.trace)
+            resolvedParts.anyNull() -> ErrorNode(interpolationNode)
 
             // Partial resolution - update the node with the resolved parts
             resolvedParts.any { it is StringInterpolationNode.Part.Reference } -> {
@@ -330,7 +330,7 @@ private class ReferenceResolutionSession(
                             messageKey = "validation.types.invalid.path",
                             e.message,
                         )
-                        ErrorNode(interpolationNode.expectedType, trace)
+                        ErrorNode(interpolationNode.expectedType, trace, interpolationNode.contexts)
                     }
                     is SchemaType.StringType -> {
                         StringNode(interpolated, type.semantics, trace, interpolationNode.contexts)

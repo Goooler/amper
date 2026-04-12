@@ -40,7 +40,7 @@ internal fun parseNode(
                     -> reportParsing(value, TreeDiagnosticId.UnexpectedNull, "validation.types.unexpected.null.stringlike", type = BuildProblemType.TypeMismatch)
                 else -> reportParsing(value, TreeDiagnosticId.UnexpectedNull, "validation.types.unexpected.null", type = BuildProblemType.TypeMismatch)
             }
-            return ErrorNode(type, value.asTrace())
+            return ErrorNode(type, value.asTrace(), explicitContexts)
         }
         return NullLiteralNode(value.asTrace(), explicitContexts)
     }
@@ -67,7 +67,8 @@ internal fun parseNode(
             //  Then we can't really parse it here, so we need this rather on `parseScalar` level.
             if (containsReferenceSyntax(value)) {
                 if (config.parseReferences) {
-                    return parseReferenceOrInterpolation(value, type) ?: ErrorNode(type, value.asTrace())
+                    return parseReferenceOrInterpolation(value, type)
+                        ?: ErrorNode(type, value.asTrace(), explicitContexts)
                 } else {
                     reportParsing(value, TreeDiagnosticId.ReferencesAreNotSupported, "validation.types.unsupported.reference", level = Level.Warning)
                 }
@@ -85,6 +86,6 @@ internal fun parseNode(
                 reportUnexpectedValue(value, type)
                 null
             }
-        } ?: ErrorNode(type, value.asTrace())
+        } ?: ErrorNode(type, value.asTrace(), explicitContexts)
     }
 }

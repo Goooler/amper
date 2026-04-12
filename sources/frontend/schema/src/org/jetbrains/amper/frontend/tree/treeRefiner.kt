@@ -133,7 +133,11 @@ private class RefineRequest(
                     return@refineOrReduceByKeys anyKeyValue.copyWithValue(
                         // Here we finally use the `expectedType` we've been tracking.
                         // In other "good" paths it doesn't play any role.
-                        ErrorNode(expectedType = recoverExpectedTypeOf(anyKeyValue, ownerType).type, trace = newTrace)
+                        ErrorNode(
+                            expectedType = recoverExpectedTypeOf(anyKeyValue, ownerType).type,
+                            trace = newTrace,
+                            contexts = anyKeyValue.contexts,
+                        )
                     )
                 }
 

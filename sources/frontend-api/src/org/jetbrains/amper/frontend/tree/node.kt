@@ -66,7 +66,7 @@ fun RefinedTreeNode.copyWithTrace(
 fun LeafTreeNode.copyWithTrace(
     trace: Trace,
 ): LeafTreeNode = when (this) {
-    is ErrorNode -> ErrorNode(expectedType, trace)
+    is ErrorNode -> ErrorNode(expectedType, trace, contexts)
     is ReferenceNode -> ReferenceNode(referencedPath, expectedType, transform, trace, contexts)
     is StringInterpolationNode -> StringInterpolationNode(parts, expectedType, trace, contexts)
     is NullLiteralNode -> NullLiteralNode(trace, contexts)
