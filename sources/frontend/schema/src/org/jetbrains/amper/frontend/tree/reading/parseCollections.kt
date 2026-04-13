@@ -6,11 +6,9 @@ package org.jetbrains.amper.frontend.tree.reading
 
 import org.jetbrains.amper.frontend.contexts.Contexts
 import org.jetbrains.amper.frontend.contexts.EmptyContexts
-import org.jetbrains.amper.frontend.tree.ErrorNode
 import org.jetbrains.amper.frontend.tree.KeyValue
 import org.jetbrains.amper.frontend.tree.ListNode
 import org.jetbrains.amper.frontend.tree.MappingNode
-import org.jetbrains.amper.frontend.tree.ScalarNode
 import org.jetbrains.amper.frontend.tree.StringNode
 import org.jetbrains.amper.frontend.tree.TreeDiagnosticId
 import org.jetbrains.amper.frontend.tree.TreeNode
@@ -92,7 +90,7 @@ context(_: Contexts, _: ParsingConfig, _: ProblemReporter)
 internal fun parseScalarKey(
     key: YamlValue,
     type: SchemaType.ScalarType,
-): ScalarNode? {
+): TreeNode {
     key.tag?.let { tag ->
         if (tag.text.startsWith("!!")) {
             reportParsing(tag, TreeDiagnosticId.TagsAreNotSupported, "validation.structure.unsupported.standard.tag", tag.text)
@@ -103,7 +101,7 @@ internal fun parseScalarKey(
     when (key) {
         is YamlValue.Missing -> {
             reportParsing(key, TreeDiagnosticId.MappingKeyIsMissing, "validation.structure.missing.key")
-            return null
+            return errorNode(key, type)
         }
         is YamlValue.Scalar -> {
             if (containsReferenceSyntax(key)) {
@@ -113,7 +111,7 @@ internal fun parseScalarKey(
         }
         else -> {
             reportParsing(key, TreeDiagnosticId.CompoundKeysAreNotSupported, "validation.types.unexpected.compound.key")
-            return null
+            return errorNode(key, type)
         }
     }
 }

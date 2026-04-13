@@ -20,11 +20,11 @@ import org.jetbrains.amper.frontend.types.TaskActionVariantDeclaration
 import org.jetbrains.amper.frontend.types.generated.*
 import org.jetbrains.amper.problems.reporting.ProblemReporter
 
-context(contexts: Contexts, _: ParsingConfig, reporter: ProblemReporter)
+context(_: Contexts, _: ParsingConfig, reporter: ProblemReporter)
 internal fun parseVariant(
     value: YamlValue,
     type: SchemaType.VariantType,
-): TreeNode? = when (type.declaration) {
+): TreeNode = when (type.declaration) {
     DeclarationOfVariantDependency -> when (inferDependencyType(value, isScoped = true)) {
         Bom -> {
             val bomDependency = (value as YamlValue.Mapping).keyValues.single()
@@ -35,7 +35,7 @@ internal fun parseVariant(
             -> parseVariant(value, type.checkSubType(DeclarationOfVariantScopedDependency))
         Failed -> {
             reportParsing(value, TreeDiagnosticId.WrongDependencyFormat, "validation.types.dependency.wrong.syntax.scoped")
-            null
+            errorNode(value, type)
         }
     }
     DeclarationOfVariantBomDependency -> when (inferDependencyType(value, isScoped = false)) {
@@ -44,11 +44,11 @@ internal fun parseVariant(
             -> parseObject(value, type.checkSubType(DeclarationOfExternalMavenBomDependency))
         Local -> {
             reportParsing(value, TreeDiagnosticId.LocalBomAreNotSupported, "unexpected.bom.local")
-            null
+            errorNode(value, type)
         }
         Failed -> {
             reportParsing(value, TreeDiagnosticId.WrongDependencyFormat, "validation.types.dependency.wrong.syntax.bom")
-            null
+            errorNode(value, type)
         }
     }
     DeclarationOfVariantScopedDependency -> when (inferDependencyType(value, isScoped = true)) {
@@ -57,25 +57,25 @@ internal fun parseVariant(
         Maven -> parseObject(value, type.checkSubType(DeclarationOfExternalMavenDependency))
         Bom -> {
             reportParsing(value, TreeDiagnosticId.BomIsNotSupported, "unexpected.bom")
-            null
+            errorNode(value, type)
         }
         Failed -> {
             reportParsing(value, TreeDiagnosticId.WrongDependencyFormat, "validation.types.dependency.wrong.syntax.scoped")
-            null
+            errorNode(value, type)
         }
     }
     DeclarationOfVariantUnscopedDependency -> when (inferDependencyType(value, isScoped = false)) {
         Bom -> {
             val bomDependency = (value as YamlValue.Mapping).keyValues.single()
             parseVariant(bomDependency.value, type.checkSubType(DeclarationOfVariantUnscopedBomDependency))
-                ?.copyWithTrace(trace = bomDependency.asTrace())
+                .copyWithTrace(trace = bomDependency.asTrace())
         }
         Local -> parseObject(value, type.checkSubType(DeclarationOfUnscopedModuleDependency))
         Maven, Catalog, // Do not parse directly, delegate to another branch for composability and DRY
              -> parseVariant(value, type.checkSubType(DeclarationOfVariantUnscopedExternalDependency))
         Failed -> {
             reportParsing(value, TreeDiagnosticId.WrongDependencyFormat, "validation.types.dependency.wrong.syntax.unscoped")
-            null
+            errorNode(value, type)
         }
     }
     DeclarationOfVariantUnscopedExternalDependency -> when (inferDependencyType(value, isScoped = false)) {
@@ -83,15 +83,15 @@ internal fun parseVariant(
         Maven -> parseObject(value, type.checkSubType(DeclarationOfUnscopedExternalMavenDependency))
         Local -> {
             reportParsing(value, TreeDiagnosticId.LocalDependenciesAreNotSupported, "unexpected.local.module")
-            null
+            errorNode(value, type)
         }
         Bom -> {
             reportParsing(value, TreeDiagnosticId.BomIsNotSupported, "unexpected.bom")
-            null
+            errorNode(value, type)
         }
         Failed -> {
             reportParsing(value, TreeDiagnosticId.WrongDependencyFormat, "validation.types.dependency.wrong.syntax.unscoped.external")
-            null
+            errorNode(value, type)
         }
     }
     DeclarationOfVariantUnscopedBomDependency -> when (inferDependencyType(value, isScoped = false)) {
@@ -100,11 +100,11 @@ internal fun parseVariant(
             -> parseObject(value, type.checkSubType(DeclarationOfUnscopedExternalMavenBomDependency))
         Local -> {
             reportParsing(value, TreeDiagnosticId.LocalBomAreNotSupported, "unexpected.bom.local")
-            null
+            errorNode(value, type)
         }
         Failed -> {
             reportParsing(value, TreeDiagnosticId.WrongDependencyFormat, "validation.types.dependency.wrong.syntax.bom")
-            null
+            errorNode(value, type)
         }
     }
     DeclarationOfVariantShadowDependency -> when (inferDependencyType(value, isScoped = false)) {
@@ -113,18 +113,18 @@ internal fun parseVariant(
         Maven -> parseObject(value, type.checkSubType(DeclarationOfShadowDependencyMaven))
         Bom -> {
             reportParsing(value, TreeDiagnosticId.BomIsNotSupported, "unexpected.bom")
-            null
+            errorNode(value, type)
         }
         Failed -> {
             reportParsing(value, TreeDiagnosticId.WrongDependencyFormat, "validation.types.dependency.wrong.syntax.unscoped.no.bom")
-            null
+            errorNode(value, type)
         }
     }
     is TaskActionVariantDeclaration -> {
         val tag = value.tag
         if (tag == null) {
             reporter.reportMessage(MissingTaskActionType(element = value.psi, taskActionType = type.declaration))
-            return null
+            return errorNode(value, type)
         }
         val requestedTypeName = tag.text.removePrefix("!")
         val variant = type.declaration.variants.find { it.qualifiedName == requestedTypeName }
@@ -136,7 +136,7 @@ internal fun parseVariant(
                     taskActionType = type.declaration,
                 )
             )
-            null
+            errorNode(value, type)
         } else {
             parseObject(value, variant.toType(), allowTypeTag = true)
         }

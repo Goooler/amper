@@ -11,6 +11,7 @@ import org.jetbrains.amper.frontend.contexts.Contexts
 import org.jetbrains.amper.frontend.reportBundleError
 import org.jetbrains.amper.frontend.tree.BooleanNode
 import org.jetbrains.amper.frontend.tree.EnumNode
+import org.jetbrains.amper.frontend.tree.ErrorNode
 import org.jetbrains.amper.frontend.tree.IntNode
 import org.jetbrains.amper.frontend.tree.KeyValue
 import org.jetbrains.amper.frontend.tree.MappingNode
@@ -145,6 +146,9 @@ internal fun reportParsing(
         problemType = type
     )
 }
+
+context(contexts: Contexts)
+fun errorNode(origin: YamlValue, expectedType: SchemaType) = ErrorNode(expectedType, origin.asTrace(), contexts)
 
 // guarantees to include non-compound child elements
 internal fun PsiElement.allChildren(): Sequence<PsiElement> = sequence {
