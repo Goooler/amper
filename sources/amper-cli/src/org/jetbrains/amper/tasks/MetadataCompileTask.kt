@@ -23,7 +23,7 @@ import org.jetbrains.amper.frontend.AmperModule
 import org.jetbrains.amper.frontend.Fragment
 import org.jetbrains.amper.frontend.Platform
 import org.jetbrains.amper.frontend.TaskName
-import org.jetbrains.amper.frontend.dr.resolver.flow.toRepository
+import org.jetbrains.amper.frontend.dr.resolver.ModuleDependencies.Companion.toRepository
 import org.jetbrains.amper.frontend.friends
 import org.jetbrains.amper.frontend.mavenRepositories
 import org.jetbrains.amper.frontend.refinedFragments

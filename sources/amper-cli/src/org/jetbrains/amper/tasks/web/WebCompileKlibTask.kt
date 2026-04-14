@@ -20,14 +20,13 @@ import org.jetbrains.amper.compilation.singleLeafFragment
 import org.jetbrains.amper.compilation.validSourceFileExtensions
 import org.jetbrains.amper.core.AmperUserCacheRoot
 import org.jetbrains.amper.core.extract.cleanDirectory
-import org.jetbrains.amper.telemetry.spanBuilder
 import org.jetbrains.amper.engine.BuildTask
 import org.jetbrains.amper.engine.TaskGraphExecutionContext
 import org.jetbrains.amper.frontend.AmperModule
 import org.jetbrains.amper.frontend.Fragment
 import org.jetbrains.amper.frontend.Platform
 import org.jetbrains.amper.frontend.TaskName
-import org.jetbrains.amper.frontend.dr.resolver.flow.toRepository
+import org.jetbrains.amper.frontend.dr.resolver.ModuleDependencies.Companion.toRepository
 import org.jetbrains.amper.frontend.isDescendantOf
 import org.jetbrains.amper.frontend.jdkSettings
 import org.jetbrains.amper.frontend.mavenRepositories
@@ -49,6 +48,7 @@ import org.jetbrains.amper.tasks.artifacts.api.Quantifier
 import org.jetbrains.amper.tasks.identificationPhrase
 import org.jetbrains.amper.tasks.native.filterKLibs
 import org.jetbrains.amper.telemetry.setListAttribute
+import org.jetbrains.amper.telemetry.spanBuilder
 import org.jetbrains.amper.telemetry.use
 import org.jetbrains.amper.util.BuildType
 import org.slf4j.LoggerFactory
