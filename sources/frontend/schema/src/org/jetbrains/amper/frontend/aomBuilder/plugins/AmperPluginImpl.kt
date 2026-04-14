@@ -17,6 +17,7 @@ import org.jetbrains.amper.frontend.asBuildProblemSource
 import org.jetbrains.amper.frontend.catalogs.substituteCatalogDependencies
 import org.jetbrains.amper.frontend.contexts.EmptyContexts
 import org.jetbrains.amper.frontend.plugins.PluginYamlRoot
+import org.jetbrains.amper.frontend.plugins.generated.ShadowCompilationArtifactKind
 import org.jetbrains.amper.frontend.plugins.generated.ShadowResolutionScope
 import org.jetbrains.amper.frontend.plugins.generated.ShadowSourcesKind
 import org.jetbrains.amper.frontend.project.AmperProjectContext
@@ -129,7 +130,14 @@ internal class AmperPluginImpl(
                     from(selfDependency)
                     kind(ShadowSourcesKind.Resources)
                 }
-                jar { from(selfDependency) }
+                jar {
+                    from(selfDependency)
+                    kind(ShadowCompilationArtifactKind.Jar)
+                }
+                classes {
+                    from(selfDependency)
+                    kind(ShadowCompilationArtifactKind.Classes)
+                }
 
                 // TODO: This will not include non-common non-main configuration.
                 settings(module.moduleCtxModule.settings.backingTree)

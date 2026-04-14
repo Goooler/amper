@@ -122,6 +122,17 @@ fun ProjectTasksBuilder.setupJvmTasks() {
                     CommonTaskType.Compile.getTaskName(module, platform, isTest = false)
                 )
 
+                val mergedClassesTaskName = CommonTaskType.MergedClasses.getTaskName(module, platform, isTest = false)
+                tasks.registerTask(  // Only ever called by plugins currently.
+                    JvmMergedClassesTask(
+                        taskName = mergedClassesTaskName,
+                        module = module,
+                        taskOutputRoot = context.getTaskOutputPath(mergedClassesTaskName),
+                        incrementalCache = context.incrementalCache,
+                    ),
+                    classesTaskName,
+                )
+
                 if (isComposeEnabledFor(module)) {
                     if (runSettings.composeHotReloadMode) {
                         val reloadTaskName = HotReloadTaskType.Reload.getTaskName(module, platform, isTest = false)

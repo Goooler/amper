@@ -19,6 +19,7 @@ fun buildDistribution(
     someInt2: Int,
     @Output distributionDir: Path,
     @Input baseJar: CompilationArtifact,
+    @Input baseClasses: CompilationArtifact,
     @Input baseClasspath: Classpath,
     @Input settings: DistributionSettings,
     @Input localProperties: Path,
@@ -30,6 +31,10 @@ fun buildDistribution(
     printClasspathInfo("base", baseClasspath)
     settings.extraNamedClasspaths.forEach { (name, classpath) ->
         printClasspathInfo(name, classpath)
+    }
+    println("classes result: ${baseClasses}")
+    baseClasses.artifact.walk().map { it.toString() }.sorted().forEachIndexed { i, path ->
+        println("classes result contents[$i] = $path")
     }
     val t = thread {
         println("compilation result: ${baseJar}")

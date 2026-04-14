@@ -18,6 +18,7 @@ internal enum class CommonTaskType(override val prefix: String) : PlatformTaskTy
     Dependencies("resolveDependencies"),
     TransformDependencies("transformDependencies"),
     Classes("classes"),
+    MergedClasses("mergedClasses"),
     Jar("jar"),
     SourcesJar("sourcesJar"),
     Publish("publish"),

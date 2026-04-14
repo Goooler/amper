@@ -113,7 +113,12 @@ class PluginsTest : AmperCliTestBase() {
             classpath combined.dependencies[2] = {modulePath: $projectDir/lib}
             classpath combined.dependencies[2].modulePath = $projectDir/lib
             classpath combined.resolvedFiles = [$buildDir/tasks/_lib_jarJvm/lib-jvm.jar, $buildDir/tasks/_core_jarJvm/core-jvm.jar, ${Dirs.userCacheRoot}/.m2.cache/org/jetbrains/kotlin/kotlin-reflect/2.2.10/kotlin-reflect-2.2.10.jar, ${Dirs.userCacheRoot}/.m2.cache/net/freeutils/jcharset/2.1/jcharset-2.1.jar, ${Dirs.userCacheRoot}/.m2.cache/org/jetbrains/kotlin/kotlin-stdlib/${DefaultVersions.kotlin}/kotlin-stdlib-${DefaultVersions.kotlin}.jar, ${Dirs.userCacheRoot}/.m2.cache/com/squareup/kotlinpoet-jvm/2.2.0/kotlinpoet-jvm-2.2.0.jar, ${Dirs.userCacheRoot}/.m2.cache/org/jetbrains/annotations/13.0/annotations-13.0.jar]
-            compilation result: {from: {modulePath: $projectDir/app}}
+            classes result: {from: {modulePath: $projectDir/app}, kind: Classes}
+            classes result contents[0] = $buildDir/tasks/_app_mergedClassesJvm/META-INF/main.kotlin_module
+            classes result contents[1] = $buildDir/tasks/_app_mergedClassesJvm/MainKt.class
+            classes result contents[2] = $buildDir/tasks/_app_mergedClassesJvm/com/example/Foo.class
+            classes result contents[3] = $buildDir/tasks/_app_mergedClassesJvm/dummy.txt
+            compilation result: {from: {modulePath: $projectDir/app}, kind: Jar}
             compilation result path: $buildDir/tasks/_app_jarJvm/app-jvm.jar
         """.trimIndent().replace('/', File.separatorChar))
     }

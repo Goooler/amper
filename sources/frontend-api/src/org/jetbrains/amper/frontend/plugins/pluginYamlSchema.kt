@@ -86,6 +86,10 @@ class ModuleDataForPlugin : SchemaNode() {
     val jar by value<ShadowCompilationArtifact>()
 
     @CanBeReferenced
+    @SchemaDoc("Unpacked classes for the module (jvm, main)")
+    val classes by value<ShadowCompilationArtifact>()
+
+    @CanBeReferenced
     @SchemaDoc("Dependency on the module itself")
     val self by value<ShadowDependencyLocal>()
 
