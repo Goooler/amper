@@ -368,6 +368,9 @@ class ModuleDependencies private constructor(
                     val resolutionId = CacheEntryKey.CompositeCacheEntryKey(
                         listOf(
                             "Project dependencies",
+                            resolutionRunSettings.resolutionDepth,
+                            resolutionRunSettings.resolutionLevel,
+                            resolutionRunSettings.downloadSources,
                             projectRoot.absolutePathString()
                         )
                     ).computeKey()
