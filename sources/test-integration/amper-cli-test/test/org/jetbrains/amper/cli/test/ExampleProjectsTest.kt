@@ -226,7 +226,6 @@ class ExampleProjectsTest: AmperCliTestBase() {
     }
 
     @Test
-    @Ignore("AMPER-5271")
     fun `spring-petclinic`() = runSlowTest {
         val projectRoot = exampleProject("spring-petclinic")
 

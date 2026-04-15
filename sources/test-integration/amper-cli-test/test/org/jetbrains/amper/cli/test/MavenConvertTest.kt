@@ -166,7 +166,6 @@ class MavenConvertTest : AmperCliTestBase() {
     }
 
     @Test
-    @Ignore("AMPER-5271")
     fun `spring-petclinic`() = runSlowTest {
         val projectRoot = testProject("maven-convert/spring-petclinic")
 
