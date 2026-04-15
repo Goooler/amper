@@ -163,8 +163,6 @@ class MavenDependencyNodeWithContext internal constructor(
     parentNodes: Set<DependencyNodeWithContext> = emptySet(),
 ) : MavenDependencyNode, DependencyNodeWithContext {
 
-    override val parents: Set<DependencyNode> get() = context.nodeParents
-
     internal constructor(
         templateContext: Context,
         coordinates: MavenCoordinates,
@@ -175,6 +173,10 @@ class MavenDependencyNodeWithContext internal constructor(
         templateContext.createOrReuseDependency(coordinates, isBom),
         parentNodes,
     )
+
+    override val context: Context = templateContext.copyWithNewNodeCache(parentNodes)
+
+    override val parents: Set<DependencyNode> get() = context.nodeParents
 
     @Volatile
     override var dependency: MavenDependencyImpl = dependency
@@ -214,7 +216,6 @@ class MavenDependencyNodeWithContext internal constructor(
     override var overriddenBy: Set<DependencyNode> = emptySet()
         internal set
 
-    override val context: Context = templateContext.copyWithNewNodeCache(parentNodes)
     override val children: List<DependencyNodeWithContext> by PropertyWithDependencyGeneric(
         dependencyProviders = listOf(
             { thisRef: MavenDependencyNodeWithContext -> thisRef.dependency.children },
@@ -444,6 +445,9 @@ class MavenDependencyConstraintNodeWithContext internal constructor(
     dependencyConstraint: MavenDependencyConstraintImpl,
     parentNodes: Set<DependencyNodeWithContext> = emptySet(),
 ):  MavenDependencyConstraintNode, DependencyNodeWithContext {
+
+    override val context: Context = templateContext.copyWithNewNodeCache(parentNodes)
+
     @Volatile
     override var dependencyConstraint: MavenDependencyConstraintImpl = dependencyConstraint
         set(value) {
@@ -461,7 +465,6 @@ class MavenDependencyConstraintNodeWithContext internal constructor(
     override var overriddenBy: Set<DependencyNode> = emptySet()
         internal set
 
-    override val context: Context = templateContext.copyWithNewNodeCache(parentNodes)
     override val children: List<DependencyNodeWithContext> = emptyList()
     override val messages: List<Message> = emptyList()
 

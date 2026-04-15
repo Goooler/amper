@@ -649,8 +649,8 @@ private class UnspecifiedMavenDependencyVersionHelper(val unspecifiedVersionProv
  */
 interface DependencyNodeWithContext: DependencyNode {
 
-    override val parents: Set<DependencyNode> get() = context.nodeParents
     val context: Context
+    override val parents: Set<DependencyNode> get() = context.nodeParents
     override val children: List<DependencyNodeWithContext>
     override val messages: List<Message>
 

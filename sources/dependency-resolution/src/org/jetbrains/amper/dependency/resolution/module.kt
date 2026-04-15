@@ -26,11 +26,12 @@ abstract class DependencyNodeHolderWithContext(
     parentNodes: Set<DependencyNodeWithContext> = emptySet(),
 ) : DependencyNodeWithContext, DependencyNodeHolder {
 
+    override val context: Context = templateContext.copyWithNewNodeCache(parentNodes)
+
     init {
         children.forEach { it.context.nodeParents.add(this) }
     }
 
-    override val context: Context = templateContext.copyWithNewNodeCache(parentNodes)
     override val key: Key<*> = Key<DependencyNodeHolder>(graphEntryName)
     override val messages: List<Message> = emptyList()
 
